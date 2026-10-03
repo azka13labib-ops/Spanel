@@ -1,0 +1,26 @@
+# Binaries
+spanel
+spanel.exe
+spanel-linux-amd64
+
+# Runtime & Local Data
+data/
+*.db
+*.db-wal
+*.db-shm
+master.key
+
+# Node & Next.js
+web/node_modules/
+web/.next/
+web/out/*
+!web/out/.gitkeep
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
