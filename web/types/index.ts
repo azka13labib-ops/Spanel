@@ -1,0 +1,92 @@
+export interface Project {
+  id: string;
+  name: string;
+  repo_fullname: string;
+  branch: string;
+  custom_domain?: string;
+  magic_domain?: string;
+  target_port: number;
+  healthcheck_path: string;
+  status: string;
+  created_at: string;
+}
+
+export interface SystemMetrics {
+  os: string;
+  arch: string;
+  num_cpu: number;
+  alloc_mb: number;
+  sys_mb: number;
+  goroutines: number;
+  host_ip: string;
+}
+
+export interface GitHubOwner {
+  login: string;
+  avatar_url: string;
+}
+
+export interface GitHubRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  html_url: string;
+  description: string;
+  default_branch: string;
+  language: string;
+  updated_at: string;
+  owner: GitHubOwner;
+}
+
+export interface GitHubStatus {
+  connected: boolean;
+  username?: string;
+  avatar_url?: string;
+}
+
+export interface GitHubBranch {
+  name: string;
+  protected?: boolean;
+}
+
+export interface EnvVarItem {
+  id: string;
+  key: string;
+  value: string;
+  is_system_injected: boolean;
+}
+
+export interface DBCredentials {
+  service_name: string;
+  username: string;
+  password: string;
+  database_name: string;
+  port: number;
+  host: string;
+  internal_uri: string;
+  external_uri: string;
+}
+
+export interface InstalledService {
+  id: string;
+  service_name: string;
+  container_id: string;
+  internal_hostname: string;
+  internal_port: number;
+  volume_host_path?: string;
+  status: string;
+  created_at: string;
+  credentials?: DBCredentials;
+}
+
+export interface MarketplaceTemplate {
+  id: "postgresql" | "mysql" | "redis" | "sqlite";
+  name: string;
+  desc: string;
+  port: number;
+  color: string;
+  category: "SQL" | "Cache" | "Embedded";
+}
+
+export type DashboardTab = "projects" | "marketplace" | "ai" | "server";
