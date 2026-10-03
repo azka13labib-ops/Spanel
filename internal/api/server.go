@@ -17,6 +17,7 @@ import (
 
 	"spanel/internal/config"
 	"spanel/internal/queue"
+	"spanel/internal/service"
 )
 
 type Server struct {
@@ -25,6 +26,7 @@ type Server struct {
 	queue      *queue.Queue
 	cfg        *config.Config
 	embeddedFS fs.FS
+	dbManager  *service.DatabaseManager
 }
 
 func NewServer(database *gorm.DB, q *queue.Queue, cfg *config.Config, embeddedFS fs.FS) *Server {
@@ -50,6 +52,7 @@ func NewServer(database *gorm.DB, q *queue.Queue, cfg *config.Config, embeddedFS
 		queue:      q,
 		cfg:        cfg,
 		embeddedFS: embeddedFS,
+		dbManager:  service.NewDatabaseManager(database, cfg),
 	}
 
 	s.setupRoutes()
@@ -71,13 +74,19 @@ func (s *Server) setupRoutes() {
 	apiGroup.Post("/projects/:id/deploy", s.handleTriggerDeploy)
 	apiGroup.Post("/projects/:id/rollback", s.handleTriggerRollback)
 	apiGroup.Post("/projects/:id/attach-db", s.handleAttachDatabase)
+	apiGroup.Get("/projects/:id/env", s.handleListProjectEnvVars)
+	apiGroup.Post("/projects/:id/env", s.handleSetProjectEnvVar)
+	apiGroup.Post("/projects/:id/env/bulk", s.handleBulkSetProjectEnvVars)
+	apiGroup.Delete("/projects/:id/env/:envId", s.handleDeleteProjectEnvVar)
 
 	// Deployments
 	apiGroup.Get("/deployments/:id", s.handleGetDeployment)
 
-	// Marketplace
+	// Marketplace (1-Click Databases)
 	apiGroup.Get("/marketplace", s.handleListMarketplace)
 	apiGroup.Post("/marketplace/install", s.handleInstallMarketplaceService)
+	apiGroup.Get("/marketplace/:id/credentials", s.handleGetMarketplaceCredentials)
+	apiGroup.Delete("/marketplace/:id", s.handleDeleteMarketplaceService)
 
 	// AI Remediation
 	apiGroup.Get("/remediations/:id", s.handleGetRemediation)
