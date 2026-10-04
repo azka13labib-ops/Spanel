@@ -75,6 +75,7 @@ func (s *Server) setupRoutes() {
 	apiGroup.Post("/projects/:id/rollback", s.handleTriggerRollback)
 	apiGroup.Post("/projects/:id/attach-db", s.handleAttachDatabase)
 	apiGroup.Get("/projects/:id/env", s.handleListProjectEnvVars)
+	apiGroup.Get("/projects/:id/env/:envId/reveal", s.handleRevealProjectEnvVar)
 	apiGroup.Post("/projects/:id/env", s.handleSetProjectEnvVar)
 	apiGroup.Post("/projects/:id/env/bulk", s.handleBulkSetProjectEnvVars)
 	apiGroup.Delete("/projects/:id/env/:envId", s.handleDeleteProjectEnvVar)

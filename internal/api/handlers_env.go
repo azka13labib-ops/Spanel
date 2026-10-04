@@ -39,20 +39,33 @@ func (s *Server) handleListProjectEnvVars(c *fiber.Ctx) error {
 
 	items := make([]EnvVarItem, 0, len(envs))
 	for _, e := range envs {
-		decrypted, err := crypto.Decrypt(e.ValueEncrypted, s.cfg.MasterKey)
-		val := decrypted
-		if err != nil {
-			val = "[Error Decrypting]"
-		}
 		items = append(items, EnvVarItem{
 			ID:               e.ID,
 			Key:              e.Key,
-			Value:            val,
+			Value:            "********",
 			IsSystemInjected: e.IsSystemInjected,
 		})
 	}
 
 	return c.JSON(items)
+}
+
+func (s *Server) handleRevealProjectEnvVar(c *fiber.Ctx) error {
+	projectID := c.Params("id")
+	envID := c.Params("envId")
+	var env db.EnvironmentVariable
+	if err := s.db.Where("project_id = ? AND id = ?", projectID, envID).First(&env).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "environment variable not found"})
+	}
+
+	decrypted, err := crypto.Decrypt(env.ValueEncrypted, s.cfg.MasterKey)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to decrypt"})
+	}
+
+	return c.JSON(fiber.Map{
+		"value": decrypted,
+	})
 }
 
 func (s *Server) handleSetProjectEnvVar(c *fiber.Ctx) error {

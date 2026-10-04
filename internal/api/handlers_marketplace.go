@@ -27,10 +27,8 @@ func (s *Server) handleListMarketplace(c *fiber.Ctx) error {
 
 	responses := make([]MarketplaceServiceResponse, 0, len(services))
 	for _, svc := range services {
-		creds, _ := s.dbManager.GetDecryptedCredentials(&svc)
 		responses = append(responses, MarketplaceServiceResponse{
 			MarketplaceService: svc,
-			Credentials:        creds,
 		})
 	}
 

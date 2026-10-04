@@ -16,6 +16,7 @@ type ExtractedContext struct {
 }
 
 var sensitiveKeyRegex = regexp.MustCompile(`(?i)(key|secret|password|token|auth|credential|jwt|cert)`)
+var tokenRegex = regexp.MustCompile(`(ghp_[a-zA-Z0-9]{36}|sk-[a-zA-Z0-9]{48}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})`)
 
 func SanitizeEnvVars(envs map[string]string) map[string]string {
 	sanitized := make(map[string]string)
@@ -23,13 +24,23 @@ func SanitizeEnvVars(envs map[string]string) map[string]string {
 		if sensitiveKeyRegex.MatchString(k) {
 			sanitized[k] = "[REDACTED_SECRET]"
 		} else {
-			sanitized[k] = v
+			sanitized[k] = tokenRegex.ReplaceAllString(v, "[REDACTED_TOKEN]")
 		}
 	}
 	return sanitized
 }
 
-func ExtractLogContext(logFilePath string) (*ExtractedContext, error) {
+func sanitizeText(text string, knownSecrets []string) string {
+	text = tokenRegex.ReplaceAllString(text, "[REDACTED_TOKEN]")
+	for _, s := range knownSecrets {
+		if s != "" && len(s) > 4 {
+			text = strings.ReplaceAll(text, s, "[REDACTED_SECRET]")
+		}
+	}
+	return text
+}
+
+func ExtractLogContext(logFilePath string, knownSecrets []string) (*ExtractedContext, error) {
 	file, err := os.Open(logFilePath)
 	if err != nil {
 		return nil, err
@@ -39,7 +50,10 @@ func ExtractLogContext(logFilePath string) (*ExtractedContext, error) {
 	var allLines []string
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		allLines = append(allLines, scanner.Text())
+		allLines = append(allLines, sanitizeText(scanner.Text(), knownSecrets))
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 
 	total := len(allLines)
@@ -61,7 +75,8 @@ func ExtractLogContext(logFilePath string) (*ExtractedContext, error) {
 			strings.Contains(lower, "panic:") ||
 			strings.Contains(lower, "exception") ||
 			strings.Contains(lower, "oomkilled") {
-			errorSig.WriteString(line + "\n")
+			errorSig.WriteString(line)
+			errorSig.WriteString("\n")
 		}
 	}
 

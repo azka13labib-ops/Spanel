@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
@@ -84,30 +85,29 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	}
 
 	repoURL := fmt.Sprintf("https://github.com/%s.git", project.RepoFullName)
-	cloneURL := repoURL
-	if gitToken != "" {
-		cloneURL = fmt.Sprintf("https://%s@github.com/%s.git", gitToken, project.RepoFullName)
-		writeLog("Using authenticated GitHub session for repository access (supports private repos)")
-	}
 
 	gitDir := filepath.Join(sourceDir, ".git")
+
+	gitArgs := func(baseArgs ...string) []string {
+		if gitToken == "" {
+			return baseArgs
+		}
+		authHeader := "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte("x-access-token:"+gitToken))
+		return append([]string{"-c", "credential.helper=", "-c", "http.extraHeader=" + authHeader}, baseArgs...)
+	}
 
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		writeLog("Cloning repository %s ...", project.RepoFullName)
 		_ = os.RemoveAll(sourceDir)
-		cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", project.Branch, cloneURL, sourceDir)
+		cmd := exec.CommandContext(ctx, "git", gitArgs("clone", "--depth", "1", "--branch", project.Branch, repoURL, sourceDir)...)
 		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 		if _, err := cmd.CombinedOutput(); err != nil {
 			// Retry without branch flag in case branch name differs
 			writeLog("Branch %s not found, retrying default branch...", project.Branch)
-			cmdFallback := exec.CommandContext(ctx, "git", "clone", "--depth", "1", cloneURL, sourceDir)
+			cmdFallback := exec.CommandContext(ctx, "git", gitArgs("clone", "--depth", "1", repoURL, sourceDir)...)
 			cmdFallback.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 			if fbOut2, fbErr := cmdFallback.CombinedOutput(); fbErr != nil {
-				cleanedOut := string(fbOut2)
-				if gitToken != "" {
-					cleanedOut = strings.ReplaceAll(cleanedOut, gitToken, "***")
-				}
-				writeLog("❌ Git clone failed: %v\nOutput: %s", fbErr, cleanedOut)
+				writeLog("❌ Git clone failed: %v\nOutput: %s", fbErr, string(fbOut2))
 				deployment.Status = "failed"
 				s.db.Save(&deployment)
 				return fmt.Errorf("git clone failed: %w", fbErr)
@@ -116,18 +116,14 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		writeLog("✓ Repository cloned successfully!")
 	} else {
 		writeLog("Pulling latest commits from repository...")
-		if gitToken != "" {
-			_ = exec.CommandContext(ctx, "git", "-C", sourceDir, "remote", "set-url", "origin", cloneURL).Run()
-		}
-		cmd := exec.CommandContext(ctx, "git", "-C", sourceDir, "pull")
+		cmd := exec.CommandContext(ctx, "git", gitArgs("-C", sourceDir, "pull")...)
 		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 		out, _ := cmd.CombinedOutput()
-		cleanedOut := string(out)
-		if gitToken != "" {
-			cleanedOut = strings.ReplaceAll(cleanedOut, gitToken, "***")
-		}
-		writeLog("%s", cleanedOut)
+		writeLog("%s", string(out))
 	}
+
+	// Remove .git directory after clone/pull so PAT doesn't get baked into the Docker image
+	_ = os.RemoveAll(gitDir)
 
 	// 2. Check Docker Engine Availability
 	writeLog("Checking Docker Engine daemon...")
@@ -180,8 +176,16 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		s.db.Save(&deployment)
 		writeLog("\n❌ Build failed. Triggering AI DevOps Diagnostics...")
 
+		var knownSecrets []string
+		if gitToken != "" {
+			knownSecrets = append(knownSecrets, gitToken)
+		}
+		for _, v := range envMap {
+			knownSecrets = append(knownSecrets, v)
+		}
+
 		// Smart Context Extractor & AI Diagnosis
-		logCtx, extErr := ai.ExtractLogContext(buildRes.LogPath)
+		logCtx, extErr := ai.ExtractLogContext(buildRes.LogPath, knownSecrets)
 		if extErr == nil && deployment.RetryCount < 3 {
 			aiKey := os.Getenv("SPANEL_AI_API_KEY")
 			aiProvider := os.Getenv("SPANEL_AI_PROVIDER")
@@ -233,8 +237,17 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		"--label", fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port=%d", project.Name, project.TargetPort),
 	}
 
-	for k, v := range envMap {
-		runArgs = append(runArgs, "-e", fmt.Sprintf("%s=%s", k, v))
+	envFile, err := os.CreateTemp("", "spanel-env-*")
+	if err == nil {
+		_ = envFile.Chmod(0600)
+		for k, v := range envMap {
+			if !strings.Contains(k, "\n") && !strings.Contains(v, "\n") {
+				fmt.Fprintf(envFile, "%s=%s\n", k, v)
+			}
+		}
+		envFile.Close()
+		defer os.Remove(envFile.Name())
+		runArgs = append(runArgs, "--env-file", envFile.Name())
 	}
 
 	var volumes []db.Volume

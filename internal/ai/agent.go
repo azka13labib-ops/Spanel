@@ -88,7 +88,7 @@ func stringsJoin(lines []string) string {
 }
 
 func (a *AIAgent) callGemini(ctx context.Context, apiKey string, prompt string) (*RemediationPlan, error) {
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s", apiKey)
+	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 
 	payload := map[string]interface{}{
 		"contents": []map[string]interface{}{
@@ -109,6 +109,7 @@ func (a *AIAgent) callGemini(ctx context.Context, apiKey string, prompt string) 
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", apiKey)
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
