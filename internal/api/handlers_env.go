@@ -58,7 +58,7 @@ func (s *Server) handleRevealProjectEnvVar(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "environment variable not found"})
 	}
 
-	decrypted, err := crypto.Decrypt(env.ValueEncrypted, s.cfg.MasterKey)
+	decrypted, err := crypto.Decrypt(env.ValueEncrypted, s.cfg.MasterKey, "env:"+env.ProjectID+":"+env.Key)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to decrypt"})
 	}
@@ -83,7 +83,7 @@ func (s *Server) handleSetProjectEnvVar(c *fiber.Ctx) error {
 	key := strings.TrimSpace(input.Key)
 	val := strings.TrimSpace(input.Value)
 
-	encVal, err := crypto.Encrypt(val, s.cfg.MasterKey)
+	encVal, err := crypto.Encrypt(val, s.cfg.MasterKey, "env:"+projectID+":"+key)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to encrypt value"})
 	}
@@ -137,7 +137,7 @@ func (s *Server) handleBulkSetProjectEnvVars(c *fiber.Ctx) error {
 			continue
 		}
 
-		encVal, err := crypto.Encrypt(v, s.cfg.MasterKey)
+		encVal, err := crypto.Encrypt(v, s.cfg.MasterKey, "env:"+projectID+":"+k)
 		if err != nil {
 			continue
 		}

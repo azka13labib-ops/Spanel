@@ -49,11 +49,9 @@ func randomString(length int) string {
 	return hex.EncodeToString(bytes)[:length]
 }
 
-// ProvisionDatabase launches the appropriate Docker container with persistent volumes
 func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName string) (*db.MarketplaceService, *DBCredentials, error) {
 	serviceName = strings.ToLower(strings.TrimSpace(serviceName))
 
-	// Ensure spanel-net docker network exists
 	_ = exec.CommandContext(ctx, "docker", "network", "create", "spanel-net").Run()
 
 	var creds DBCredentials
@@ -79,7 +77,6 @@ func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName str
 			ExternalURI:  fmt.Sprintf("postgres://spanel:%s@localhost:5432/spanel_db?sslmode=disable", pass),
 		}
 
-		// Create docker volume
 		volumeName := "spanel-vol-postgres"
 		_ = exec.CommandContext(ctx, "docker", "volume", "create", volumeName).Run()
 		_ = exec.CommandContext(ctx, "docker", "rm", "-f", containerName).Run()
@@ -219,7 +216,7 @@ func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName str
 	}
 
 	credsJSON, _ := json.Marshal(creds)
-	encCreds, _ := crypto.Encrypt(string(credsJSON), m.cfg.MasterKey)
+	encCreds, _ := crypto.Encrypt(string(credsJSON), m.cfg.MasterKey, "mkt:service:"+serviceName)
 
 	// Save or update in database
 	var svc db.MarketplaceService
@@ -254,7 +251,7 @@ func (m *DatabaseManager) GetDecryptedCredentials(svc *db.MarketplaceService) (*
 		return nil, fmt.Errorf("no credentials found")
 	}
 
-	decrypted, err := crypto.Decrypt(svc.CredentialsEncrypted, m.cfg.MasterKey)
+	decrypted, err := crypto.Decrypt(svc.CredentialsEncrypted, m.cfg.MasterKey, "mkt:service:"+svc.ServiceName)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +288,7 @@ func (m *DatabaseManager) AttachDatabaseToProject(projectID string, serviceID st
 		envKey = "REDIS_URL"
 	}
 
-	encVal, err := crypto.Encrypt(envVal, m.cfg.MasterKey)
+	encVal, err := crypto.Encrypt(envVal, m.cfg.MasterKey, "env:"+project.ID+":"+envKey)
 	if err != nil {
 		return nil, fmt.Errorf("encryption error: %w", err)
 	}
@@ -319,7 +316,7 @@ func (m *DatabaseManager) AttachDatabaseToProject(projectID string, serviceID st
 		m.db.Create(&vol)
 
 		// Also inject SQLITE_PATH
-		encPath, _ := crypto.Encrypt("/data/sqlite.db", m.cfg.MasterKey)
+		encPath, _ := crypto.Encrypt("/data/sqlite.db", m.cfg.MasterKey, "env:"+project.ID+":SQLITE_PATH")
 		m.db.Where("project_id = ? AND key = ?", project.ID, "SQLITE_PATH").Delete(&db.EnvironmentVariable{})
 		m.db.Create(&db.EnvironmentVariable{
 			ProjectID:        project.ID,

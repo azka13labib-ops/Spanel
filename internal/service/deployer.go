@@ -81,11 +81,11 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	var gitToken string
 	var ghAcc db.GitHubAccount
 	if err := s.db.First(&ghAcc, "user_id = ?", project.UserID).Error; err == nil {
-		if decrypted, dErr := crypto.Decrypt(ghAcc.TokenEncrypted, s.cfg.MasterKey); dErr == nil && decrypted != "" {
+		if decrypted, dErr := crypto.Decrypt(ghAcc.TokenEncrypted, s.cfg.MasterKey, "gh:"+ghAcc.UserID); dErr == nil && decrypted != "" {
 			gitToken = decrypted
 		}
 	} else if err := s.db.First(&ghAcc).Error; err == nil {
-		if decrypted, dErr := crypto.Decrypt(ghAcc.TokenEncrypted, s.cfg.MasterKey); dErr == nil && decrypted != "" {
+		if decrypted, dErr := crypto.Decrypt(ghAcc.TokenEncrypted, s.cfg.MasterKey, "gh:"+ghAcc.UserID); dErr == nil && decrypted != "" {
 			gitToken = decrypted
 		}
 	}
@@ -163,7 +163,7 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	s.db.Where("project_id = ?", project.ID).Find(&envs)
 	envMap := make(map[string]string)
 	for _, e := range envs {
-		val, err := crypto.Decrypt(e.ValueEncrypted, s.cfg.MasterKey)
+		val, err := crypto.Decrypt(e.ValueEncrypted, s.cfg.MasterKey, "env:"+e.ProjectID+":"+e.Key)
 		if err == nil {
 			buildOpts.EnvVars[e.Key] = val
 			envMap[e.Key] = val

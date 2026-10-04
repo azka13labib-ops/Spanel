@@ -105,7 +105,7 @@ func (s *Server) handleGitHubConnect(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to parse GitHub response"})
 	}
 
-	encToken, err := crypto.Encrypt(token, s.cfg.MasterKey)
+	encToken, err := crypto.Encrypt(token, s.cfg.MasterKey, "gh:default-admin")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to encrypt token"})
 	}
@@ -148,7 +148,7 @@ func (s *Server) handleGitHubListRepos(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "GitHub belum terhubung. Silakan login / hubungkan GitHub terlebih dahulu."})
 	}
 
-	token, err := crypto.Decrypt(acc.TokenEncrypted, s.cfg.MasterKey)
+	token, err := crypto.Decrypt(acc.TokenEncrypted, s.cfg.MasterKey, "gh:default-admin")
 	if err != nil || token == "" {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to decrypt GitHub token"})
 	}
@@ -194,7 +194,7 @@ func (s *Server) handleGitHubListBranches(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "GitHub belum terhubung"})
 	}
 
-	token, err := crypto.Decrypt(acc.TokenEncrypted, s.cfg.MasterKey)
+	token, err := crypto.Decrypt(acc.TokenEncrypted, s.cfg.MasterKey, "gh:default-admin")
 	if err != nil || token == "" {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to decrypt GitHub token"})
 	}

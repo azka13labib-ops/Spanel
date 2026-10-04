@@ -55,32 +55,43 @@ func BuildWithNixpacksEphemeral(ctx context.Context, opts *BuildOptions) (*Build
 	dockerfilePath := filepath.Join(opts.SourceDir, "Dockerfile")
 	var cmd *exec.Cmd
 
-	if _, err := os.Stat(dockerfilePath); err == nil {
-		// Use optimized Dockerfile build with live streaming
-		_, _ = combinedWriter.Write([]byte("📦 Detected Dockerfile! Running optimized native Docker build...\n"))
-		buildArgs := []string{"build", "-t", opts.ImageTag}
-		for k, v := range opts.EnvVars {
-			buildArgs = append(buildArgs, "--build-arg", fmt.Sprintf("%s=%s", k, v))
-		}
-		buildArgs = append(buildArgs, ".")
-		cmd = exec.CommandContext(ctx, "docker", buildArgs...)
-		cmd.Dir = opts.SourceDir
-	} else {
-		// Use Nixpacks Ephemeral Container
-		_, _ = combinedWriter.Write([]byte("⚡ No Dockerfile detected. Using Ephemeral Nixpacks Container...\n"))
-		args := []string{
+	relDockerfilePath := "Dockerfile"
+
+	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
+		// Use Nixpacks Ephemeral Container to generate Dockerfile without docker.sock
+		_, _ = combinedWriter.Write([]byte("⚡ No Dockerfile detected. Generating build plan with Nixpacks...\n"))
+		genArgs := []string{
 			"run", "--rm",
-			"-v", fmt.Sprintf("%s:/app:ro", absSourceDir),
-			"-v", "/var/run/docker.sock:/var/run/docker.sock",
+			"-v", fmt.Sprintf("%s:/app", absSourceDir),
 			"ghcr.io/railwayapp/nixpacks:latest",
-			"build", "/app",
-			"--name", opts.ImageTag,
+			"build", "/app", "--out", "/app/.nixpacks",
 		}
 		for k, v := range opts.EnvVars {
-			args = append(args, "--env", fmt.Sprintf("%s=%s", k, v))
+			genArgs = append(genArgs, "--env", fmt.Sprintf("%s=%s", k, v))
 		}
-		cmd = exec.CommandContext(ctx, "docker", args...)
+		genCmd := exec.CommandContext(ctx, "docker", genArgs...)
+		genOut, err := genCmd.CombinedOutput()
+		_, _ = combinedWriter.Write(genOut)
+		if err != nil {
+			return &BuildResult{
+				Success:    false,
+				Duration:   time.Since(startTime),
+				LogPath:    logFilePath,
+				ErrorTrace: fmt.Sprintf("Nixpacks generation failed: %v", err),
+			}, err
+		}
+		relDockerfilePath = filepath.Join(".nixpacks", "Dockerfile")
 	}
+
+	// Use optimized Dockerfile build with live streaming
+	_, _ = combinedWriter.Write([]byte("📦 Running native Docker build...\n"))
+	buildArgs := []string{"build", "-t", opts.ImageTag, "-f", relDockerfilePath}
+	for k, v := range opts.EnvVars {
+		buildArgs = append(buildArgs, "--build-arg", fmt.Sprintf("%s=%s", k, v))
+	}
+	buildArgs = append(buildArgs, ".")
+	cmd = exec.CommandContext(ctx, "docker", buildArgs...)
+	cmd.Dir = opts.SourceDir
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
