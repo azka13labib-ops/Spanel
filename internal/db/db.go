@@ -14,7 +14,7 @@ var DB *gorm.DB
 
 func Init(dbPath string) (*gorm.DB, error) {
 	// Open SQLite with pure-Go driver
-	dsn := fmt.Sprintf("%s?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)", dbPath)
+	dsn := fmt.Sprintf("%s?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)&_txlock=immediate", dbPath)
 
 	gormConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),
@@ -32,13 +32,13 @@ func Init(dbPath string) (*gorm.DB, error) {
 
 	// Optimize connection pooling for SQLite WAL mode:
 	// WAL allows multiple readers and 1 writer concurrently without lockups.
-	sqlDB.SetMaxOpenConns(10)
-	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetConnMaxLifetime(0)
 
 	// Execute PRAGMAs explicitly just to be certain
 	pragmas := []string{
 		"PRAGMA journal_mode = WAL;",
-		"PRAGMA busy_timeout = 5000;",
+		"PRAGMA busy_timeout = 10000;",
 		"PRAGMA synchronous = NORMAL;",
 		"PRAGMA foreign_keys = ON;",
 	}

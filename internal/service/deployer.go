@@ -219,6 +219,13 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		"--name", containerName,
 		"--network", "spanel-net",
 		"--restart", "unless-stopped",
+		"--memory", fmt.Sprintf("%dm", project.MemoryLimitMB),
+		"--memory-swap", fmt.Sprintf("%dm", project.MemoryLimitMB),
+		"--cpus", fmt.Sprintf("%.2f", project.CPULimit),
+		"--pids-limit", "512",
+		"--security-opt", "no-new-privileges",
+		"--cap-drop", "ALL", 
+		"--cap-add", "NET_BIND_SERVICE",
 		"-p", fmt.Sprintf("%d:%d", project.TargetPort, project.TargetPort),
 		"--label", "traefik.enable=true",
 		"--label", "traefik.docker.network=spanel-net",
@@ -226,12 +233,10 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		"--label", fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port=%d", project.Name, project.TargetPort),
 	}
 
-	// Inject environment variables (like DATABASE_URL, etc.)
 	for k, v := range envMap {
 		runArgs = append(runArgs, "-e", fmt.Sprintf("%s=%s", k, v))
 	}
 
-	// Mount persistent volumes if any (e.g. SQLite / data mounts)
 	var volumes []db.Volume
 	s.db.Where("project_id = ?", project.ID).Find(&volumes)
 	for _, vol := range volumes {
@@ -248,7 +253,6 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		return runErr
 	}
 
-	// Deployment Succeeded
 	deployment.Status = "healthy"
 	deployment.ImageHash = buildRes.ImageTag
 	s.db.Save(&deployment)

@@ -92,7 +92,7 @@ func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName str
 			"-e", "POSTGRES_USER=spanel",
 			"-e", fmt.Sprintf("POSTGRES_PASSWORD=%s", pass),
 			"-e", "POSTGRES_DB=spanel_db",
-			"-p", "5432:5432",
+			"-p", "127.0.0.1:5432:5432",
 			"postgres:16-alpine",
 		)
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -129,7 +129,7 @@ func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName str
 			"-e", fmt.Sprintf("MYSQL_PASSWORD=%s", pass),
 			"-e", "MYSQL_DATABASE=spanel_db",
 			"-e", fmt.Sprintf("MYSQL_ROOT_PASSWORD=%s", pass),
-			"-p", "3306:3306",
+			"-p", "127.0.0.1:3306:3306",
 			"mysql:8.0",
 		)
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -162,7 +162,7 @@ func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName str
 			"--network", "spanel-net",
 			"--restart", "unless-stopped",
 			"-v", fmt.Sprintf("%s:/data", volumeName),
-			"-p", "6379:6379",
+			"-p", "127.0.0.1:6379:6379",
 			"redis:7.2-alpine",
 			"redis-server", "--requirepass", pass,
 		)
@@ -207,7 +207,7 @@ func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName str
 			"--network", "spanel-net",
 			"--restart", "unless-stopped",
 			"-v", fmt.Sprintf("%s:/data", sqliteDir),
-			"-p", "8085:8080",
+			"-p", "127.0.0.1:8085:8080",
 			"-e", "SQLITE_DATABASE=/data/sqlite.db",
 			"coleifer/sqlite-web",
 			"sqlite.db",

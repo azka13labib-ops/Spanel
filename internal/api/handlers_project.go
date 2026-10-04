@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -44,6 +45,11 @@ func (s *Server) handleCreateProject(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name and repo_fullname are required"})
 	}
 
+	var nameRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$`)
+	if !nameRe.MatchString(input.Name) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid name format. use lowercase, numbers, and dashes"})
+	}
+
 	// Sanitize repo full name if user entered full URL
 	repo := strings.TrimSpace(input.RepoFullName)
 	repo = strings.TrimPrefix(repo, "https://github.com/")
@@ -52,21 +58,38 @@ func (s *Server) handleCreateProject(c *fiber.Ctx) error {
 	repo = strings.TrimSuffix(repo, ".git")
 	input.RepoFullName = repo
 
+	var repoRe = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
+	if !repoRe.MatchString(input.RepoFullName) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid repo_fullname format"})
+	}
+
 	if input.Branch == "" {
 		input.Branch = "main"
 	}
+	var branchRe = regexp.MustCompile(`^[A-Za-z0-9._/-]{1,100}$`)
+	if !branchRe.MatchString(input.Branch) || strings.HasPrefix(input.Branch, "-") {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid branch format"})
+	}
+
 	if input.TargetPort == 0 {
 		input.TargetPort = 3000
 	}
 	if input.HealthcheckPath == "" {
 		input.HealthcheckPath = "/"
 	}
+	
 	if input.MemoryLimitMB == 0 {
 		input.MemoryLimitMB = 512
+	} else if input.MemoryLimitMB < 64 || input.MemoryLimitMB > 8192 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "memory_limit_mb must be between 64 and 8192"})
 	}
+
 	if input.CPULimit == 0 {
 		input.CPULimit = 1.0
+	} else if input.CPULimit < 0.1 || input.CPULimit > 32.0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "cpu_limit must be between 0.1 and 32.0"})
 	}
+
 	if input.AIMode == "" {
 		input.AIMode = "supervised"
 	}

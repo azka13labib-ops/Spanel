@@ -60,6 +60,9 @@ func (q *Queue) Enqueue(jobType string, targetID string) (*db.InternalQueueJob, 
 
 // Start runs the worker loop in a goroutine
 func (q *Queue) Start(ctx context.Context) {
+	// Reset orphaned jobs on startup
+	q.db.Exec(`UPDATE internal_queue_jobs SET status='pending' WHERE status='processing'`)
+
 	q.wg.Add(1)
 	go func() {
 		defer q.wg.Done()
@@ -91,27 +94,17 @@ func (q *Queue) Stop() {
 }
 
 func (q *Queue) processNextJob(ctx context.Context) {
-	var jobs []db.InternalQueueJob
+	var job db.InternalQueueJob
 
 	// Fetch 1 pending job atomically
-	tx := q.db.Begin()
-	err := tx.Where("status = ?", "pending").
-		Order("created_at asc").
-		Limit(1).
-		Find(&jobs).Error
+	res := q.db.Raw(`UPDATE internal_queue_jobs SET status='processing', updated_at=CURRENT_TIMESTAMP
+		WHERE id = (SELECT id FROM internal_queue_jobs WHERE status='pending' AND deleted_at IS NULL
+					ORDER BY created_at LIMIT 1)
+		RETURNING *`).Scan(&job)
 
-	if err != nil || len(jobs) == 0 {
-		tx.Rollback()
+	if res.Error != nil || job.ID == "" {
 		return // No pending jobs
 	}
-
-	job := jobs[0]
-	job.Status = "processing"
-	if err := tx.Save(&job).Error; err != nil {
-		tx.Rollback()
-		return
-	}
-	tx.Commit()
 
 	log.Printf("[QUEUE] Processing job ID: %s, Type: %s, Target: %s", job.ID, job.JobType, job.TargetID)
 

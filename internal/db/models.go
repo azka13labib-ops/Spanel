@@ -62,7 +62,7 @@ type Project struct {
 	BaseModel
 	UserID               string  `gorm:"index;not null" json:"user_id"`
 	GitHubInstallationID *string `gorm:"index" json:"github_installation_id"`
-	Name                 string  `gorm:"not null" json:"name"`
+	Name                 string  `gorm:"uniqueIndex;not null" json:"name"`
 	RepoFullName         string  `gorm:"not null" json:"repo_fullname"`
 	Branch               string  `gorm:"default:'main'" json:"branch"`
 	CustomDomain         string  `json:"custom_domain"`
