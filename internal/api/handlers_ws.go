@@ -21,40 +21,63 @@ func (s *Server) handleLogStreamWebSocket(c *websocket.Conn) {
 
 	logFilePath := filepath.Join(".", "data", "logs", fmt.Sprintf("%s.log", deploymentID))
 
-	// Tail the file
-	file, err := os.Open(logFilePath)
-	if err != nil {
-		_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Log file not found: %s. Waiting for build to start...\n", deploymentID)))
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	var reader *bufio.Reader
-	if file != nil {
-		defer file.Close()
-		reader = bufio.NewReader(file)
+	go func() { // detect client close
+		defer cancel()
+		for { 
+			if _, _, err := c.ReadMessage(); err != nil { 
+				return 
+			} 
+		}
+	}()
+
+	var file *os.File
+	for file == nil {
+		if f, err := os.Open(logFilePath); err == nil {
+			file = f
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(1 * time.Second):
+		}
 	}
+	defer file.Close()
+	
+	reader := bufio.NewReader(file)
+	ping := time.NewTicker(20 * time.Second)
+	defer ping.Stop()
 
 	for {
-		if reader != nil {
-			line, err := reader.ReadString('\n')
-			if err == nil {
-				if err := c.WriteMessage(websocket.TextMessage, []byte(line)); err != nil {
-					break
+		line, err := reader.ReadString('\n')
+		if len(line) > 0 {
+			if c.WriteMessage(websocket.TextMessage, []byte(line)) != nil {
+				return
+			}
+		}
+		if err == io.EOF {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ping.C:
+				if c.WriteMessage(websocket.PingMessage, nil) != nil {
+					return
 				}
-				continue
+			case <-time.After(500 * time.Millisecond):
 			}
-			if err == io.EOF {
-				time.Sleep(500 * time.Millisecond)
-				continue
+
+			// check if deployment terminal to stop tailing
+			var d db.Deployment
+			if s.db.Select("status").First(&d, "id = ?", deploymentID).Error == nil {
+				if d.Status == "healthy" || d.Status == "failed" {
+					return
+				}
 			}
-		} else {
-			// Retry open
-			if f, err := os.Open(logFilePath); err == nil {
-				file = f
-				defer file.Close()
-				reader = bufio.NewReader(file)
-				continue
-			}
-			time.Sleep(1 * time.Second)
+		} else if err != nil {
+			return
 		}
 	}
 }
@@ -70,67 +93,56 @@ func (s *Server) handleTerminalWebSocket(c *websocket.Conn) {
 		return
 	}
 
-	containerID := "spanel-" + project.ID
+	containerID := "spanel-app-" + project.Name
 
 	_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Connecting to project %s terminal...\r\n", project.Name)))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "docker", "exec", "-it", containerID, "/bin/sh")
+	cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerID, "/bin/sh")
 	stdin, _ := cmd.StdinPipe()
-	stdout, _ := cmd.StdoutPipe()
-	stderr, _ := cmd.StderrPipe()
+	pr, pw := io.Pipe()
+	cmd.Stdout = pw
+	cmd.Stderr = pw
 
 	if err := cmd.Start(); err != nil {
 		_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Failed to exec terminal: %v\r\n", err)))
 		return
 	}
 
+	done := make(chan struct{})
+
 	// Output reader to WS
 	go func() {
-		defer cancel()
-		buf := make([]byte, 1024)
+		defer close(done)
+		buf := make([]byte, 4096)
 		for {
-			n, err := stdout.Read(buf)
-			if n > 0 {
-				if err := c.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
-					break
-				}
+			n, err := pr.Read(buf)
+			if n > 0 && c.WriteMessage(websocket.BinaryMessage, buf[:n]) != nil {
+				return
 			}
 			if err != nil {
-				break
-			}
-		}
-	}()
-
-	go func() {
-		defer cancel()
-		buf := make([]byte, 1024)
-		for {
-			n, err := stderr.Read(buf)
-			if n > 0 {
-				if err := c.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
-					break
-				}
-			}
-			if err != nil {
-				break
+				return
 			}
 		}
 	}()
 
 	// WS input to stdin
-	for {
-		_, msg, err := c.ReadMessage()
-		if err != nil {
-			cancel()
-			break
-		}
-		_, _ = stdin.Write(msg)
-	}
-
 	go func() {
-		_ = cmd.Wait()
+		defer cancel()
+		for {
+			_, msg, err := c.ReadMessage()
+			if err != nil {
+				return
+			}
+			if _, err := stdin.Write(msg); err != nil {
+				return
+			}
+		}
 	}()
+
+	<-done
+	cancel()
+	_ = cmd.Wait()
 }

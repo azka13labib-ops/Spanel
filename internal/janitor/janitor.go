@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os/exec"
+	"time"
 
 	"github.com/robfig/cron/v3"
 	"spanel/internal/db"
@@ -25,7 +26,7 @@ func NewJanitor(q *queue.Queue) *Janitor {
 func (j *Janitor) Start() {
 	// Register job handler in queue
 	j.queue.RegisterHandler("janitor_prune", func(ctx context.Context, job *db.InternalQueueJob) error {
-		return RunDockerPrune()
+		return RunDockerPrune(ctx)
 	})
 
 	// Run every day at 03:00:00 AM (cron spec with seconds: 0 0 3 * * *)
@@ -43,13 +44,17 @@ func (j *Janitor) Start() {
 }
 
 func (j *Janitor) Stop() {
-	j.cron.Stop()
+	<-j.cron.Stop().Done()
 }
 
 // RunDockerPrune executes docker image prune for dangling layers older than 168h (7 days)
-func RunDockerPrune() error {
+func RunDockerPrune(ctx context.Context) error {
 	log.Println("[JANITOR] Running docker image prune -af --filter until=168h ...")
-	cmd := exec.Command("docker", "image", "prune", "-af", "--filter", "until=168h")
+	
+	pruneCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+	
+	cmd := exec.CommandContext(pruneCtx, "docker", "image", "prune", "-af", "--filter", "until=168h", "--filter", "label!=spanel.keep=true")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("[JANITOR WARNING] docker prune returned error: %v, output: %s", err, string(output))

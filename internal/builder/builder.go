@@ -42,16 +42,9 @@ func BuildWithNixpacksEphemeral(ctx context.Context, opts *BuildOptions) (*Build
 	_ = os.MkdirAll(logsDir, 0755)
 	logFilePath := filepath.Join(logsDir, fmt.Sprintf("%s.log", opts.DeploymentID))
 
-	fileLog, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open log file: %w", err)
-	}
-	defer fileLog.Close()
-
-	// MultiWriter to write to file and optional real-time stream (e.g., WebSocket)
-	var combinedWriter io.Writer = fileLog
-	if opts.LogWriter != nil {
-		combinedWriter = io.MultiWriter(fileLog, opts.LogWriter)
+	var combinedWriter io.Writer = opts.LogWriter
+	if combinedWriter == nil {
+		combinedWriter = os.Stdout
 	}
 
 	header := fmt.Sprintf("=== [sPanel Ephemeral Builder] ===\nDeployment: %s\nProject: %s\nTarget Image: %s\nStarted: %s\n\n",

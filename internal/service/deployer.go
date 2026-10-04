@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,6 +19,13 @@ import (
 	"spanel/internal/crypto"
 	"spanel/internal/db"
 )
+
+var projectMutexes sync.Map
+
+func getProjectMutex(projectID string) *sync.Mutex {
+	v, _ := projectMutexes.LoadOrStore(projectID, &sync.Mutex{})
+	return v.(*sync.Mutex)
+}
 
 type DeployService struct {
 	db      *gorm.DB
@@ -33,7 +41,6 @@ func NewDeployService(database *gorm.DB, aiAgent *ai.AIAgent, cfg *config.Config
 	}
 }
 
-// HandleDeploy executes the complete pipeline: Git clone/pull -> Docker verify -> Nixpacks build -> Container spin-up -> Traefik routing
 func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJob) error {
 	var deployment db.Deployment
 	if err := s.db.First(&deployment, "id = ?", job.TargetID).Error; err != nil {
@@ -45,14 +52,14 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		return fmt.Errorf("project %s not found: %w", deployment.ProjectID, err)
 	}
 
-	// Update deployment status to building
+	mu := getProjectMutex(project.ID)
+	mu.Lock()
+	defer mu.Unlock()
+
 	s.db.Model(&deployment).Update("status", "building")
 
-	// Source directory (local git clone cache)
 	sourceDir := filepath.Join(".", "data", "repos", project.Name)
 	_ = os.MkdirAll(filepath.Dir(sourceDir), 0755)
-
-	// Setup log file early
 	logsDir := filepath.Join(".", "data", "logs")
 	_ = os.MkdirAll(logsDir, 0755)
 	logFilePath := filepath.Join(logsDir, fmt.Sprintf("%s.log", deployment.ID))
@@ -71,7 +78,6 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	writeLog("=== [sPanel Engine Deployment Triggered] ===")
 	writeLog("Project: %s | Repo: %s | Branch: %s", project.Name, project.RepoFullName, project.Branch)
 
-	// 1. Git Clone or Pull with GitHub Token Support
 	var gitToken string
 	var ghAcc db.GitHubAccount
 	if err := s.db.First(&ghAcc, "user_id = ?", project.UserID).Error; err == nil {
@@ -102,7 +108,6 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		cmd := exec.CommandContext(ctx, "git", gitArgs("clone", "--depth", "1", "--branch", project.Branch, repoURL, sourceDir)...)
 		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 		if _, err := cmd.CombinedOutput(); err != nil {
-			// Retry without branch flag in case branch name differs
 			writeLog("Branch %s not found, retrying default branch...", project.Branch)
 			cmdFallback := exec.CommandContext(ctx, "git", gitArgs("clone", "--depth", "1", repoURL, sourceDir)...)
 			cmdFallback.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
@@ -209,14 +214,11 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		return err
 	}
 
-	// 5. Spin Up Application Container with Traefik Labels & Port Mapping
 	containerName := fmt.Sprintf("spanel-app-%s", project.Name)
 	writeLog("Launching container %s on port %d...", containerName, project.TargetPort)
 
-	// Stop old container if exists
 	_ = exec.CommandContext(ctx, "docker", "rm", "-f", containerName).Run()
 
-	// Run container with Traefik routing + direct port mapping fallback
 	_ = exec.CommandContext(ctx, "docker", "network", "create", "spanel-net").Run()
 	runArgs := []string{
 		"run", "-d",

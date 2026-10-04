@@ -27,7 +27,7 @@ func EnsureTraefikRunning(ctx context.Context, writeLog func(string, ...interfac
 		"--restart", "always",
 		"--network", "spanel-net",
 		"-p", "80:80",
-		"-v", "/var/run/docker.sock:/var/run/docker.sock",
+		"-v", "/var/run/docker.sock:/var/run/docker.sock:ro",
 		"traefik:v3.1",
 		"--providers.docker=true",
 		"--providers.docker.exposedbydefault=false",
