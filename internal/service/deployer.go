@@ -235,9 +235,17 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		"-p", fmt.Sprintf("%d:%d", project.TargetPort, project.TargetPort),
 		"--label", "traefik.enable=true",
 		"--label", "traefik.docker.network=spanel-net",
-		"--label", fmt.Sprintf("traefik.http.routers.%s.rule=Host(`%s`)", project.Name, project.MagicDomain),
-		"--label", fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port=%d", project.Name, project.TargetPort),
 	}
+
+	traefikRule := fmt.Sprintf("Host(`%s`)", project.MagicDomain)
+	if project.CustomDomain != "" {
+		traefikRule = fmt.Sprintf("Host(`%s`) || %s", project.CustomDomain, traefikRule)
+	}
+	runArgs = append(runArgs, 
+		"--label", fmt.Sprintf("traefik.http.routers.%s.rule=%s", project.Name, traefikRule),
+		"--label", fmt.Sprintf("traefik.http.routers.%s.tls.certresolver=letsencrypt", project.Name),
+		"--label", fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port=%d", project.Name, project.TargetPort),
+	)
 
 	envFile, err := os.CreateTemp("", "spanel-env-*")
 	if err == nil {

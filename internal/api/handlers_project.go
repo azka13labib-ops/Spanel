@@ -235,3 +235,39 @@ func (s *Server) handleGetDeployment(c *fiber.Ctx) error {
 	}
 	return c.JSON(deployment)
 }
+
+type SetDomainInput struct {
+	Domain string `json:"domain"`
+}
+
+func (s *Server) handleSetProjectDomain(c *fiber.Ctx) error {
+	projectID := c.Params("id")
+	var project db.Project
+	if err := s.db.First(&project, "id = ?", projectID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "project not found"})
+	}
+
+	var input SetDomainInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid payload"})
+	}
+
+	domain := strings.TrimSpace(input.Domain)
+	if domain != "" {
+		// regex to validate domain format (no http/https, valid hostname)
+		domainRe := regexp.MustCompile(`^(?i)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\.[a-z]{2,}$`)
+		if !domainRe.MatchString(domain) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid domain format (do not include http:// or https://)"})
+		}
+	}
+
+	project.CustomDomain = domain
+	if err := s.db.Save(&project).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save domain"})
+	}
+
+	return c.JSON(fiber.Map{
+		"message":       "domain updated successfully",
+		"custom_domain": project.CustomDomain,
+	})
+}

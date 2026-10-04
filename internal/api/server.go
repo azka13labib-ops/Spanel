@@ -71,6 +71,7 @@ func (s *Server) setupRoutes() {
 	apiGroup.Get("/projects", s.handleListProjects)
 	apiGroup.Post("/projects", s.handleCreateProject)
 	apiGroup.Get("/projects/:id", s.handleGetProject)
+	apiGroup.Post("/projects/:id/domain", s.handleSetProjectDomain)
 	apiGroup.Post("/projects/:id/deploy", s.handleTriggerDeploy)
 	apiGroup.Post("/projects/:id/rollback", s.handleTriggerRollback)
 	apiGroup.Post("/projects/:id/attach-db", s.handleAttachDatabase)

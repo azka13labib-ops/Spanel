@@ -19,7 +19,7 @@ func EnsureTraefikRunning(ctx context.Context, writeLog func(string, ...interfac
 		return
 	}
 
-	writeLog("Starting Traefik reverse proxy on port 80...")
+	writeLog("Starting Traefik reverse proxy on ports 80 & 443...")
 	_ = exec.CommandContext(ctx, "docker", "rm", "-f", "spanel-traefik").Run()
 
 	runTraefik := exec.CommandContext(ctx, "docker", "run", "-d",
@@ -27,12 +27,20 @@ func EnsureTraefikRunning(ctx context.Context, writeLog func(string, ...interfac
 		"--restart", "always",
 		"--network", "spanel-net",
 		"-p", "80:80",
+		"-p", "443:443",
 		"-v", "/var/run/docker.sock:/var/run/docker.sock:ro",
+		"-v", "spanel-traefik-data:/etc/traefik/acme",
 		"traefik:v3.1",
 		"--providers.docker=true",
 		"--providers.docker.exposedbydefault=false",
 		"--providers.docker.network=spanel-net",
 		"--entrypoints.web.address=:80",
+		"--entrypoints.websecure.address=:443",
+		"--entrypoints.web.http.redirections.entryPoint.to=websecure",
+		"--entrypoints.web.http.redirections.entryPoint.scheme=https",
+		"--certificatesresolvers.letsencrypt.acme.tlschallenge=true",
+		"--certificatesresolvers.letsencrypt.acme.email=admin@spanel.local",
+		"--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json",
 	)
 
 	if tOut, tErr := runTraefik.CombinedOutput(); tErr != nil {
