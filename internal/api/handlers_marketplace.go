@@ -92,3 +92,53 @@ func (s *Server) handleDeleteMarketplaceService(c *fiber.Ctx) error {
 		"id":      id,
 	})
 }
+
+func (s *Server) handleBackupMarketplaceService(c *fiber.Ctx) error {
+	id := c.Params("id")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	info, err := s.dbManager.BackupService(ctx, id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"message": "backup created successfully",
+		"backup":  info,
+	})
+}
+
+func (s *Server) handleListMarketplaceBackups(c *fiber.Ctx) error {
+	id := c.Params("id")
+	backups, err := s.dbManager.ListBackups(id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(backups)
+}
+
+type RestoreBackupInput struct {
+	Filename string `json:"filename"`
+}
+
+func (s *Server) handleRestoreMarketplaceBackup(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var input RestoreBackupInput
+	if err := c.BodyParser(&input); err != nil || input.Filename == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "filename is required"})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	if err := s.dbManager.RestoreBackup(ctx, id, input.Filename); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "database restored successfully",
+		"file":    input.Filename,
+	})
+}
+

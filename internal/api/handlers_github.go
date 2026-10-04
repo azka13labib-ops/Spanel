@@ -1,6 +1,9 @@
 package api
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,6 +14,18 @@ import (
 	"spanel/internal/crypto"
 	"spanel/internal/db"
 )
+
+func verifySignature(secret string, signature string, body []byte) bool {
+	if secret == "" || signature == "" {
+		return false
+	}
+	
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(body)
+	expectedMAC := hex.EncodeToString(mac.Sum(nil))
+	
+	return hmac.Equal([]byte(strings.TrimPrefix(signature, "sha256=")), []byte(expectedMAC))
+}
 
 type GitHubConnectInput struct {
 	Token string `json:"token"`
@@ -211,3 +226,153 @@ func (s *Server) handleGitHubListBranches(c *fiber.Ctx) error {
 
 	return c.JSON(branches)
 }
+
+type GitHubPushPayload struct {
+	Ref        string `json:"ref"`
+	After      string `json:"after"`
+	HeadCommit struct {
+		ID      string `json:"id"`
+		Message string `json:"message"`
+	} `json:"head_commit"`
+	Repository struct {
+		FullName string `json:"full_name"`
+		Name     string `json:"name"`
+	} `json:"repository"`
+}
+
+func (s *Server) handleGitHubWebhook(c *fiber.Ctx) error {
+	event := c.Get("X-GitHub-Event")
+	if event == "ping" {
+		return c.JSON(fiber.Map{"message": "pong", "status": "active"})
+	}
+
+	var payload GitHubPushPayload
+	if err := c.BodyParser(&payload); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid webhook payload"})
+	}
+
+	repoFullName := strings.ToLower(strings.TrimSpace(payload.Repository.FullName))
+	if repoFullName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "repository.full_name is missing"})
+	}
+
+	branch := strings.TrimPrefix(payload.Ref, "refs/heads/")
+	if branch == "" {
+		branch = "main"
+	}
+
+	var projects []db.Project
+	if err := s.db.Where("LOWER(repo_fullname) = ?", repoFullName).Find(&projects).Error; err != nil || len(projects) == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": fmt.Sprintf("no project found for repo %s", repoFullName)})
+	}
+
+	var triggeredCount int
+	var lastDeploymentID string
+	now := time.Now()
+
+	for _, project := range projects {
+		if project.Branch != "" && project.Branch != branch {
+			continue
+		}
+
+		commitHash := payload.HeadCommit.ID
+		if commitHash == "" {
+			commitHash = payload.After
+		}
+		if commitHash == "" {
+			commitHash = "HEAD"
+		}
+
+		commitMsg := payload.HeadCommit.Message
+		if commitMsg == "" {
+			commitMsg = fmt.Sprintf("Auto-deploy from GitHub push to %s", branch)
+		}
+
+		deployment := db.Deployment{
+			ProjectID:     project.ID,
+			CommitHash:    commitHash,
+			CommitMessage: commitMsg,
+			Status:        "queued",
+			StartedAt:     &now,
+		}
+
+		if err := s.db.Create(&deployment).Error; err == nil {
+			_, _ = s.queue.Enqueue("deploy", deployment.ID)
+			triggeredCount++
+			lastDeploymentID = deployment.ID
+		}
+	}
+
+	if triggeredCount == 0 {
+		return c.JSON(fiber.Map{
+			"message": fmt.Sprintf("Push event received for branch %s, but no project matched this branch.", branch),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message":         fmt.Sprintf("Auto-deployment triggered for %d project(s)", triggeredCount),
+		"deployment_id":   lastDeploymentID,
+		"triggered_count": triggeredCount,
+	})
+}
+
+func (s *Server) handleProjectWebhook(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var project db.Project
+	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "project not found"})
+	}
+
+	event := c.Get("X-GitHub-Event")
+	if event == "ping" {
+		return c.JSON(fiber.Map{"message": "pong", "project": project.Name})
+	}
+
+	if project.WebhookSecret != "" {
+		signature := c.Get("X-Hub-Signature-256")
+		if !verifySignature(project.WebhookSecret, signature, c.Body()) {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid webhook signature"})
+		}
+	}
+
+	var payload GitHubPushPayload
+	_ = c.BodyParser(&payload)
+
+	commitHash := payload.HeadCommit.ID
+	if commitHash == "" {
+		commitHash = payload.After
+	}
+	if commitHash == "" {
+		commitHash = "HEAD"
+	}
+
+	commitMsg := payload.HeadCommit.Message
+	if commitMsg == "" {
+		commitMsg = "Triggered via Webhook"
+	}
+
+	now := time.Now()
+	deployment := db.Deployment{
+		ProjectID:     project.ID,
+		CommitHash:    commitHash,
+		CommitMessage: commitMsg,
+		Status:        "queued",
+		StartedAt:     &now,
+	}
+
+	if err := s.db.Create(&deployment).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	_, err := s.queue.Enqueue("deploy", deployment.ID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to enqueue deploy job"})
+	}
+
+	return c.JSON(fiber.Map{
+		"message":       "Auto-deployment queued successfully",
+		"deployment_id": deployment.ID,
+		"project_id":    project.ID,
+	})
+}
+

@@ -61,7 +61,7 @@ func NewServer(database *gorm.DB, q *queue.Queue, cfg *config.Config, embeddedFS
 
 func (s *Server) setupRoutes() {
 	// API Group
-	apiGroup := s.app.Group("/api")
+	apiGroup := s.app.Group("/api", s.requireAuth())
 
 	// System Health & Info
 	apiGroup.Get("/health", s.handleHealth)
@@ -82,11 +82,18 @@ func (s *Server) setupRoutes() {
 	// Deployments
 	apiGroup.Get("/deployments/:id", s.handleGetDeployment)
 
-	// Marketplace (1-Click Databases)
+	// Webhooks (Auto-Deploy on Push)
+	apiGroup.Post("/webhooks/github", s.handleGitHubWebhook)
+	apiGroup.Post("/projects/:id/webhook", s.handleProjectWebhook)
+
+	// Marketplace (1-Click Databases & Backups)
 	apiGroup.Get("/marketplace", s.handleListMarketplace)
 	apiGroup.Post("/marketplace/install", s.handleInstallMarketplaceService)
 	apiGroup.Get("/marketplace/:id/credentials", s.handleGetMarketplaceCredentials)
 	apiGroup.Delete("/marketplace/:id", s.handleDeleteMarketplaceService)
+	apiGroup.Post("/marketplace/:id/backup", s.handleBackupMarketplaceService)
+	apiGroup.Get("/marketplace/:id/backups", s.handleListMarketplaceBackups)
+	apiGroup.Post("/marketplace/:id/restore", s.handleRestoreMarketplaceBackup)
 
 	// AI Remediation
 	apiGroup.Get("/remediations/:id", s.handleGetRemediation)
@@ -100,7 +107,7 @@ func (s *Server) setupRoutes() {
 	apiGroup.Get("/github/repos/:owner/:repo/branches", s.handleGitHubListBranches)
 
 	// WebSockets (Log Streaming & Web Terminal)
-	s.app.Use("/ws", func(c *fiber.Ctx) error {
+	s.app.Use("/ws", s.requireAuth(), s.requireSameOrigin(), func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) {
 			c.Locals("allowed", true)
 			return c.Next()
@@ -109,7 +116,7 @@ func (s *Server) setupRoutes() {
 	})
 
 	s.app.Get("/ws/logs/:deploymentId", websocket.New(s.handleLogStreamWebSocket))
-	s.app.Get("/ws/terminal/:containerId", websocket.New(s.handleTerminalWebSocket))
+	s.app.Get("/ws/terminal/:projectId", websocket.New(s.handleTerminalWebSocket))
 
 	// Serve Embedded Next.js SPA
 	if s.embeddedFS != nil {

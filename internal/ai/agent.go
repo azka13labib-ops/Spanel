@@ -14,7 +14,7 @@ import (
 var ErrLoopBreakerTriggered = errors.New("remediation retry limit reached (max 3 retries); flagged as failed_needs_human")
 
 type RemediationPlan struct {
-	ErrorCategory string                 `json:"error_category"` // config_issue, code_issue, oom_killed, port_mismatch
+	ErrorCategory string                 `json:"error_category"` 
 	Analysis      string                 `json:"analysis"`
 	ConfigChanges map[string]interface{} `json:"config_changes,omitempty"`
 	SuggestedCode string                 `json:"suggested_code,omitempty"`
@@ -30,7 +30,6 @@ func NewAIAgent() *AIAgent {
 	}
 }
 
-// DiagnoseAndRemediate generates an AI remediation plan using the user's BYOK provider
 func (a *AIAgent) DiagnoseAndRemediate(
 	ctx context.Context,
 	provider string,
@@ -38,7 +37,6 @@ func (a *AIAgent) DiagnoseAndRemediate(
 	retryCount int,
 	logCtx *ExtractedContext,
 ) (*RemediationPlan, error) {
-	// 1. Loop breaker guard: prevent infinite billing loops!
 	if retryCount >= 3 {
 		return nil, ErrLoopBreakerTriggered
 	}

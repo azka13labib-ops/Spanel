@@ -1,5 +1,5 @@
-import React from "react";
-import { FolderGit2, CheckCircle2, ExternalLink, Play, RotateCcw, Terminal, Key } from "lucide-react";
+import React, { useState } from "react";
+import { FolderGit2, CheckCircle2, ExternalLink, Play, RotateCcw, Terminal, Key, Webhook, Copy, Check } from "lucide-react";
 import { Project } from "@/types";
 
 interface ProjectCardProps {
@@ -8,6 +8,7 @@ interface ProjectCardProps {
   onRollback: (project: Project) => void;
   onViewLogs: (project: Project) => void;
   onOpenEnvVars: (project: Project) => void;
+  onOpenTerminal?: (project: Project) => void;
 }
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
@@ -16,9 +17,25 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   onRollback,
   onViewLogs,
   onOpenEnvVars,
+  onOpenTerminal,
 }) => {
+  const [copiedWebhook, setCopiedWebhook] = useState(false);
+
+  const getWebhookUrl = () => {
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}/api/projects/${project.id}/webhook`;
+    }
+    return `/api/projects/${project.id}/webhook`;
+  };
+
+  const handleCopyWebhook = () => {
+    navigator.clipboard.writeText(getWebhookUrl());
+    setCopiedWebhook(true);
+    setTimeout(() => setCopiedWebhook(false), 2000);
+  };
+
   return (
-    <div className="glass-panel glass-card-hover rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between">
+    <div className="glass-panel glass-card-hover rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between space-y-4">
       <div className="space-y-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -33,10 +50,26 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             </div>
           </div>
 
-          <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            Healthy
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopyWebhook}
+              title="Copy GitHub Auto-Deploy Webhook URL"
+              className="flex items-center gap-1 text-[11px] font-mono px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 transition cursor-pointer"
+            >
+              <Webhook className="h-3 w-3 text-cyan-400" />
+              <span>{copiedWebhook ? "Copied Webhook!" : "Webhook"}</span>
+              {copiedWebhook ? (
+                <Check className="h-3 w-3 text-emerald-400" />
+              ) : (
+                <Copy className="h-3 w-3 text-slate-500" />
+              )}
+            </button>
+
+            <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Healthy
+            </span>
+          </div>
         </div>
 
         {/* Magic Domain Pill */}
@@ -89,6 +122,16 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           <Key className="h-3.5 w-3.5" />
           Env
         </button>
+        {onOpenTerminal && (
+          <button
+            onClick={() => onOpenTerminal(project)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-emerald-500/10 hover:text-emerald-400 border border-white/10 text-xs font-semibold text-slate-300 transition cursor-pointer"
+            title="Open Interactive Shell Terminal"
+          >
+            <Terminal className="h-3.5 w-3.5" />
+            Shell
+          </button>
+        )}
         <button
           onClick={() => onRollback(project)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-purple-500/10 hover:text-purple-400 border border-white/10 text-xs font-semibold transition cursor-pointer"
@@ -109,3 +152,4 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     </div>
   );
 };
+

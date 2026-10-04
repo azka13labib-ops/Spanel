@@ -17,7 +17,6 @@ type ExtractedContext struct {
 
 var sensitiveKeyRegex = regexp.MustCompile(`(?i)(key|secret|password|token|auth|credential|jwt|cert)`)
 
-// SanitizeEnvVars hides sensitive values while preserving variable keys
 func SanitizeEnvVars(envs map[string]string) map[string]string {
 	sanitized := make(map[string]string)
 	for k, v := range envs {
@@ -30,7 +29,6 @@ func SanitizeEnvVars(envs map[string]string) map[string]string {
 	return sanitized
 }
 
-// ExtractLogContext extracts 50 first lines + 150 last lines from a build log file
 func ExtractLogContext(logFilePath string) (*ExtractedContext, error) {
 	file, err := os.Open(logFilePath)
 	if err != nil {
@@ -55,7 +53,6 @@ func ExtractLogContext(logFilePath string) (*ExtractedContext, error) {
 		tail = allLines[total-150:]
 	}
 
-	// Identify potential error signatures
 	var errorSig strings.Builder
 	for _, line := range tail {
 		lower := strings.ToLower(line)

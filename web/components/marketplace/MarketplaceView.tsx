@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Layers,
   Key,
+  HardDrive,
 } from "lucide-react";
 import { MarketplaceTemplate, InstalledService, Project, DBCredentials } from "@/types";
 import {
@@ -18,6 +19,7 @@ import {
   attachDatabaseToProject,
   deleteMarketplaceService,
 } from "@/lib/api";
+import { DatabaseBackupModal } from "@/components/modals/DatabaseBackupModal";
 
 const availableTemplates: MarketplaceTemplate[] = [
   {
@@ -71,6 +73,9 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ projects }) =>
   // Credentials modal state
   const [viewCreds, setViewCreds] = useState<DBCredentials | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Backup modal state
+  const [backupService, setBackupService] = useState<InstalledService | null>(null);
 
   const loadServices = useCallback(async () => {
     setLoading(true);
@@ -228,6 +233,14 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ projects }) =>
                         title="View Credentials & URI"
                       >
                         <Key className="h-4 w-4" />
+                      </button>
+
+                      <button
+                        onClick={() => setBackupService(installed)}
+                        className="p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 transition cursor-pointer"
+                        title="Backup & Snapshot Database"
+                      >
+                        <HardDrive className="h-4 w-4" />
                       </button>
 
                       <button
@@ -447,6 +460,12 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ projects }) =>
           </div>
         </div>
       )}
+      {/* Modal Database Backup & Snapshot */}
+      <DatabaseBackupModal
+        isOpen={!!backupService}
+        onClose={() => setBackupService(null)}
+        service={backupService}
+      />
     </div>
   );
 };

@@ -19,6 +19,7 @@ import { ServerHygieneView } from "@/components/server/ServerHygieneView";
 import { DeployLogModal } from "@/components/modals/DeployLogModal";
 import { ImportProjectModal } from "@/components/modals/ImportProjectModal";
 import { EnvVarsModal } from "@/components/modals/EnvVarsModal";
+import { WebTerminalModal } from "@/components/modals/WebTerminalModal";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTab>("projects");
@@ -39,6 +40,7 @@ export default function Dashboard() {
   const [activeLogProject, setActiveLogProject] = useState<string>("");
   const [deployLogs, setDeployLogs] = useState<string[]>([]);
   const [activeEnvProject, setActiveEnvProject] = useState<Project | null>(null);
+  const [terminalProject, setTerminalProject] = useState<Project | null>(null);
 
   // GitHub state
   const [githubStatus, setGithubStatus] = useState<GitHubStatus | null>(null);
@@ -163,6 +165,7 @@ export default function Dashboard() {
             onRollback={handleRollback}
             onViewLogs={handleViewLogs}
             onOpenEnvVars={(proj) => setActiveEnvProject(proj)}
+            onOpenTerminal={(proj) => setTerminalProject(proj)}
           />
         )}
 
@@ -187,6 +190,14 @@ export default function Dashboard() {
         project={activeEnvProject}
         onClose={() => setActiveEnvProject(null)}
         onTriggerDeploy={handleDeploy}
+      />
+
+      {/* Web Terminal Modal */}
+      <WebTerminalModal
+        isOpen={!!terminalProject}
+        onClose={() => setTerminalProject(null)}
+        title={`Terminal — ${terminalProject?.name || ""}`}
+        containerId={`spanel-app-${terminalProject?.name || ""}`}
       />
 
       {/* Import / Create Project Modal */}

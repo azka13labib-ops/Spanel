@@ -7,6 +7,7 @@ import {
   InstalledService,
   DBCredentials,
   EnvVarItem,
+  BackupInfo,
 } from "@/types";
 
 export async function fetchSystemMetrics(): Promise<SystemMetrics | null> {
@@ -268,3 +269,46 @@ export async function deleteProjectEnvVar(
     return { ok: false, error: (err as Error).message };
   }
 }
+
+export async function triggerMarketplaceBackup(
+  serviceId: string
+): Promise<{ ok: boolean; data?: BackupInfo; error?: string }> {
+  try {
+    const res = await fetch(`/api/marketplace/${serviceId}/backup`, { method: "POST" });
+    const data = await res.json();
+    if (res.ok) return { ok: true, data: data.backup };
+    return { ok: false, error: data.error || "Gagal membuat backup" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function fetchMarketplaceBackups(serviceId: string): Promise<BackupInfo[]> {
+  try {
+    const res = await fetch(`/api/marketplace/${serviceId}/backups`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+    }
+  } catch {}
+  return [];
+}
+
+export async function restoreMarketplaceBackup(
+  serviceId: string,
+  filename: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`/api/marketplace/${serviceId}/restore`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename }),
+    });
+    const data = await res.json();
+    if (res.ok) return { ok: true };
+    return { ok: false, error: data.error || "Gagal restore database" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+

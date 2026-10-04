@@ -8,6 +8,7 @@ interface ProjectGridProps {
   onRollback: (project: Project) => void;
   onViewLogs: (project: Project) => void;
   onOpenEnvVars: (project: Project) => void;
+  onOpenTerminal?: (project: Project) => void;
 }
 
 export const ProjectGrid: React.FC<ProjectGridProps> = ({
@@ -16,6 +17,7 @@ export const ProjectGrid: React.FC<ProjectGridProps> = ({
   onRollback,
   onViewLogs,
   onOpenEnvVars,
+  onOpenTerminal,
 }) => {
   return (
     <div className="space-y-6">
@@ -28,6 +30,7 @@ export const ProjectGrid: React.FC<ProjectGridProps> = ({
             onRollback={onRollback}
             onViewLogs={onViewLogs}
             onOpenEnvVars={onOpenEnvVars}
+            onOpenTerminal={onOpenTerminal}
           />
         ))}
       </div>

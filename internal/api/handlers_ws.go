@@ -2,6 +2,7 @@ package api
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	websocket "github.com/gofiber/websocket/v2"
+	"spanel/internal/db"
 )
 
 // handleLogStreamWebSocket streams deployment build/run logs via WebSocket
@@ -59,12 +61,23 @@ func (s *Server) handleLogStreamWebSocket(c *websocket.Conn) {
 
 // handleTerminalWebSocket opens an interactive sh session inside a Docker container
 func (s *Server) handleTerminalWebSocket(c *websocket.Conn) {
-	containerID := c.Params("containerId")
+	projectID := c.Params("projectId")
 	defer c.Close()
 
-	_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Connecting to container %s terminal...\r\n", containerID)))
+	var project db.Project
+	if err := s.db.First(&project, "id = ?", projectID).Error; err != nil {
+		_ = c.WriteMessage(websocket.TextMessage, []byte("Project not found\r\n"))
+		return
+	}
 
-	cmd := exec.Command("docker", "exec", "-it", containerID, "/bin/sh")
+	containerID := "spanel-" + project.ID
+
+	_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Connecting to project %s terminal...\r\n", project.Name)))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "docker", "exec", "-it", containerID, "/bin/sh")
 	stdin, _ := cmd.StdinPipe()
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
@@ -76,11 +89,14 @@ func (s *Server) handleTerminalWebSocket(c *websocket.Conn) {
 
 	// Output reader to WS
 	go func() {
+		defer cancel()
 		buf := make([]byte, 1024)
 		for {
 			n, err := stdout.Read(buf)
 			if n > 0 {
-				_ = c.WriteMessage(websocket.BinaryMessage, buf[:n])
+				if err := c.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
+					break
+				}
 			}
 			if err != nil {
 				break
@@ -89,11 +105,14 @@ func (s *Server) handleTerminalWebSocket(c *websocket.Conn) {
 	}()
 
 	go func() {
+		defer cancel()
 		buf := make([]byte, 1024)
 		for {
 			n, err := stderr.Read(buf)
 			if n > 0 {
-				_ = c.WriteMessage(websocket.BinaryMessage, buf[:n])
+				if err := c.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
+					break
+				}
 			}
 			if err != nil {
 				break
@@ -105,10 +124,13 @@ func (s *Server) handleTerminalWebSocket(c *websocket.Conn) {
 	for {
 		_, msg, err := c.ReadMessage()
 		if err != nil {
+			cancel()
 			break
 		}
 		_, _ = stdin.Write(msg)
 	}
 
-	_ = cmd.Process.Kill()
+	go func() {
+		_ = cmd.Wait()
+	}()
 }

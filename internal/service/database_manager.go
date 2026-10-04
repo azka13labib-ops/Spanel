@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"gorm.io/gorm"
@@ -330,3 +331,212 @@ func (m *DatabaseManager) AttachDatabaseToProject(projectID string, serviceID st
 
 	return creds, nil
 }
+
+type BackupInfo struct {
+	Filename  string    `json:"filename"`
+	Size      int64     `json:"size"`
+	CreatedAt time.Time `json:"created_at"`
+	Service   string    `json:"service"`
+}
+
+func (m *DatabaseManager) BackupService(ctx context.Context, serviceID string) (*BackupInfo, error) {
+	var svc db.MarketplaceService
+	if err := m.db.First(&svc, "id = ?", serviceID).Error; err != nil {
+		return nil, fmt.Errorf("service not found: %w", err)
+	}
+
+	creds, err := m.GetDecryptedCredentials(&svc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	backupDir := filepath.Join(m.cfg.DataDir, "backups", svc.ServiceName)
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create backup directory: %w", err)
+	}
+
+	timestamp := time.Now().Format("20060102_150405")
+	var filename string
+	var destPath string
+
+	switch svc.ServiceName {
+	case "postgresql", "postgres":
+		filename = fmt.Sprintf("postgres_%s.sql", timestamp)
+		destPath = filepath.Join(backupDir, filename)
+		cmd := exec.CommandContext(ctx, "docker", "exec",
+			"-e", fmt.Sprintf("PGPASSWORD=%s", creds.Password),
+			svc.ContainerID,
+			"pg_dump", "-U", creds.Username, "-d", creds.DatabaseName,
+		)
+		outFile, err := os.Create(destPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create backup file: %w", err)
+		}
+		defer outFile.Close()
+		cmd.Stdout = outFile
+		if err := cmd.Run(); err != nil {
+			return nil, fmt.Errorf("pg_dump failed: %w", err)
+		}
+
+	case "mysql":
+		filename = fmt.Sprintf("mysql_%s.sql", timestamp)
+		destPath = filepath.Join(backupDir, filename)
+		cmd := exec.CommandContext(ctx, "docker", "exec",
+			svc.ContainerID,
+			"mysqldump", "-u", creds.Username, fmt.Sprintf("-p%s", creds.Password), creds.DatabaseName,
+		)
+		outFile, err := os.Create(destPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create backup file: %w", err)
+		}
+		defer outFile.Close()
+		cmd.Stdout = outFile
+		if err := cmd.Run(); err != nil {
+			return nil, fmt.Errorf("mysqldump failed: %w", err)
+		}
+
+	case "sqlite":
+		filename = fmt.Sprintf("sqlite_%s.db", timestamp)
+		destPath = filepath.Join(backupDir, filename)
+		sqliteSrc := filepath.Join(m.cfg.DataDir, "sqlite", "sqlite.db")
+		data, err := os.ReadFile(sqliteSrc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read sqlite source: %w", err)
+		}
+		if err := os.WriteFile(destPath, data, 0644); err != nil {
+			return nil, fmt.Errorf("failed to write sqlite backup: %w", err)
+		}
+
+	case "redis":
+		filename = fmt.Sprintf("redis_%s.rdb", timestamp)
+		destPath = filepath.Join(backupDir, filename)
+		_ = exec.CommandContext(ctx, "docker", "exec", svc.ContainerID, "redis-cli", "-a", creds.Password, "SAVE").Run()
+		cmd := exec.CommandContext(ctx, "docker", "cp", fmt.Sprintf("%s:/data/dump.rdb", svc.ContainerID), destPath)
+		if err := cmd.Run(); err != nil {
+			return nil, fmt.Errorf("failed to copy redis dump: %w", err)
+		}
+
+	default:
+		return nil, fmt.Errorf("backup not supported for service: %s", svc.ServiceName)
+	}
+
+	fi, err := os.Stat(destPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat backup file: %w", err)
+	}
+
+	return &BackupInfo{
+		Filename:  filename,
+		Size:      fi.Size(),
+		CreatedAt: fi.ModTime(),
+		Service:   svc.ServiceName,
+	}, nil
+}
+
+func (m *DatabaseManager) ListBackups(serviceID string) ([]BackupInfo, error) {
+	var svc db.MarketplaceService
+	if err := m.db.First(&svc, "id = ?", serviceID).Error; err != nil {
+		return nil, fmt.Errorf("service not found: %w", err)
+	}
+
+	backupDir := filepath.Join(m.cfg.DataDir, "backups", svc.ServiceName)
+	entries, err := os.ReadDir(backupDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []BackupInfo{}, nil
+		}
+		return nil, err
+	}
+
+	var results []BackupInfo
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		results = append(results, BackupInfo{
+			Filename:  entry.Name(),
+			Size:      info.Size(),
+			CreatedAt: info.ModTime(),
+			Service:   svc.ServiceName,
+		})
+	}
+	return results, nil
+}
+
+func (m *DatabaseManager) RestoreBackup(ctx context.Context, serviceID string, filename string) error {
+	var svc db.MarketplaceService
+	if err := m.db.First(&svc, "id = ?", serviceID).Error; err != nil {
+		return fmt.Errorf("service not found: %w", err)
+	}
+
+	creds, err := m.GetDecryptedCredentials(&svc)
+	if err != nil {
+		return fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	cleanFilename := filepath.Base(filename)
+	backupPath := filepath.Join(m.cfg.DataDir, "backups", svc.ServiceName, cleanFilename)
+	if _, err := os.Stat(backupPath); err != nil {
+		return fmt.Errorf("backup file not found: %w", err)
+	}
+
+	switch svc.ServiceName {
+	case "postgresql", "postgres":
+		inFile, err := os.Open(backupPath)
+		if err != nil {
+			return err
+		}
+		defer inFile.Close()
+		cmd := exec.CommandContext(ctx, "docker", "exec", "-i",
+			"-e", fmt.Sprintf("PGPASSWORD=%s", creds.Password),
+			svc.ContainerID,
+			"psql", "-U", creds.Username, "-d", creds.DatabaseName,
+		)
+		cmd.Stdin = inFile
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("psql restore failed: %w (%s)", err, string(out))
+		}
+
+	case "mysql":
+		inFile, err := os.Open(backupPath)
+		if err != nil {
+			return err
+		}
+		defer inFile.Close()
+		cmd := exec.CommandContext(ctx, "docker", "exec", "-i",
+			svc.ContainerID,
+			"mysql", "-u", creds.Username, fmt.Sprintf("-p%s", creds.Password), creds.DatabaseName,
+		)
+		cmd.Stdin = inFile
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("mysql restore failed: %w (%s)", err, string(out))
+		}
+
+	case "sqlite":
+		data, err := os.ReadFile(backupPath)
+		if err != nil {
+			return err
+		}
+		dest := filepath.Join(m.cfg.DataDir, "sqlite", "sqlite.db")
+		if err := os.WriteFile(dest, data, 0644); err != nil {
+			return err
+		}
+
+	case "redis":
+		cmd := exec.CommandContext(ctx, "docker", "cp", backupPath, fmt.Sprintf("%s:/data/dump.rdb", svc.ContainerID))
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+		_ = exec.CommandContext(ctx, "docker", "restart", svc.ContainerID).Run()
+
+	default:
+		return fmt.Errorf("restore not supported for: %s", svc.ServiceName)
+	}
+
+	return nil
+}
+

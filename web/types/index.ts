@@ -89,4 +89,12 @@ export interface MarketplaceTemplate {
   category: "SQL" | "Cache" | "Embedded";
 }
 
+export interface BackupInfo {
+  filename: string;
+  size: number;
+  created_at: string;
+  service: string;
+}
+
 export type DashboardTab = "projects" | "marketplace" | "ai" | "server";
+

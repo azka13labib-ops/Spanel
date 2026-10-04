@@ -74,6 +74,7 @@ type Project struct {
 	DockerNetwork        string  `json:"docker_network"`
 	AIMode               string  `gorm:"default:'supervised'" json:"ai_mode"` // "supervised", "autonomous"
 	Status               string  `gorm:"default:'idle'" json:"status"`        // "idle", "running", "stopped", "error"
+	WebhookSecret        string  `json:"webhook_secret"`
 
 	EnvVars     []EnvironmentVariable `gorm:"foreignKey:ProjectID" json:"env_vars,omitempty"`
 	Volumes     []Volume              `gorm:"foreignKey:ProjectID" json:"volumes,omitempty"`
