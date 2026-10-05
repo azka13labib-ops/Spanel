@@ -46,6 +46,7 @@ export function DatabaseBackupModal({
 
   useEffect(() => {
     if (isOpen && service) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadBackups();
     }
   }, [isOpen, service, loadBackups]);

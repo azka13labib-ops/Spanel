@@ -34,7 +34,8 @@ export function WebTerminalModal({
     const host = window.location.host;
     const wsUrl = `${protocol}//${host}/ws/terminal/${encodeURIComponent(containerId)}`;
 
-    const ws = new WebSocket(wsUrl);
+    const token = localStorage.getItem("spanel_token") || "";
+    const ws = new WebSocket(`${wsUrl}?token=${encodeURIComponent(token)}`);
     socketRef.current = ws;
 
     ws.onopen = () => {

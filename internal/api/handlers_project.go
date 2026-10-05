@@ -271,3 +271,91 @@ func (s *Server) handleSetProjectDomain(c *fiber.Ctx) error {
 		"custom_domain": project.CustomDomain,
 	})
 }
+
+func (s *Server) handleDeleteProject(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var project db.Project
+	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
+	}
+
+	exec.Command("docker", "rm", "-f", "spanel-app-"+project.Name).Run()
+	exec.Command("docker", "volume", "rm", "spanel-app-"+project.Name+"_data").Run()
+
+	if err := s.db.Delete(&project).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete project"})
+	}
+	return c.JSON(fiber.Map{"message": "Project deleted successfully"})
+}
+
+type UpdateProjectInput struct {
+	Branch          string  `json:"branch"`
+	TargetPort      int     `json:"target_port"`
+	HealthcheckPath string  `json:"healthcheck_path"`
+}
+
+func (s *Server) handleUpdateProject(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var project db.Project
+	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
+	}
+	
+	var input UpdateProjectInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid payload"})
+	}
+
+	if input.Branch != "" {
+		project.Branch = input.Branch
+	}
+	if input.TargetPort > 0 {
+		project.TargetPort = input.TargetPort
+	}
+	if input.HealthcheckPath != "" {
+		project.HealthcheckPath = input.HealthcheckPath
+	}
+
+	if err := s.db.Save(&project).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update project"})
+	}
+	return c.JSON(project)
+}
+
+func (s *Server) handleStartProject(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var project db.Project
+	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
+	}
+	if err := exec.Command("docker", "start", "spanel-app-"+project.Name).Run(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to start container: " + err.Error()})
+	}
+	return c.JSON(fiber.Map{"message": "Started successfully"})
+}
+
+func (s *Server) handleStopProject(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var project db.Project
+	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
+	}
+	if err := exec.Command("docker", "stop", "spanel-app-"+project.Name).Run(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to stop container: " + err.Error()})
+	}
+	return c.JSON(fiber.Map{"message": "Stopped successfully"})
+}
+
+func (s *Server) handleRestartProject(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var project db.Project
+	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
+	}
+	if err := exec.Command("docker", "restart", "spanel-app-"+project.Name).Run(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to restart container: " + err.Error()})
+	}
+	return c.JSON(fiber.Map{"message": "Restarted successfully"})
+}
+
+

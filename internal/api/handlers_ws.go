@@ -82,6 +82,77 @@ func (s *Server) handleLogStreamWebSocket(c *websocket.Conn) {
 	}
 }
 
+// handleRuntimeLogStreamWebSocket streams docker logs of the running container
+func (s *Server) handleRuntimeLogStreamWebSocket(c *websocket.Conn) {
+	projectID := c.Params("projectId")
+	defer c.Close()
+
+	var project db.Project
+	if err := s.db.First(&project, "id = ?", projectID).Error; err != nil {
+		_ = c.WriteMessage(websocket.TextMessage, []byte("Project not found\r\n"))
+		return
+	}
+
+	containerID := "spanel-app-" + project.Name
+	_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Attaching to %s logs...\r\n", containerID)))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() { // detect client close
+		defer cancel()
+		for { 
+			if _, _, err := c.ReadMessage(); err != nil { 
+				return 
+			} 
+		}
+	}()
+
+	cmd := exec.CommandContext(ctx, "docker", "logs", "-f", "--tail", "100", containerID)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return
+	}
+	cmd.Stderr = cmd.Stdout
+
+	if err := cmd.Start(); err != nil {
+		_ = c.WriteMessage(websocket.TextMessage, []byte("Failed to attach to logs.\r\n"))
+		return
+	}
+
+	reader := bufio.NewReader(stdout)
+	ping := time.NewTicker(20 * time.Second)
+	defer ping.Stop()
+
+	go func() {
+		<-ctx.Done()
+		cmd.Process.Kill()
+	}()
+
+	for {
+		line, err := reader.ReadString('\n')
+		if len(line) > 0 {
+			if c.WriteMessage(websocket.TextMessage, []byte(line)) != nil {
+				return
+			}
+		}
+		if err != nil {
+			if err == io.EOF {
+				_ = c.WriteMessage(websocket.TextMessage, []byte("\r\n[Stream ended]\r\n"))
+			}
+			return
+		}
+
+		select {
+		case <-ping.C:
+			if c.WriteMessage(websocket.PingMessage, nil) != nil {
+				return
+			}
+		default:
+		}
+	}
+}
+
 // handleTerminalWebSocket opens an interactive sh session inside a Docker container
 func (s *Server) handleTerminalWebSocket(c *websocket.Conn) {
 	projectID := c.Params("projectId")

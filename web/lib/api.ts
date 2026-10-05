@@ -10,9 +10,28 @@ import {
   BackupInfo,
 } from "@/types";
 
+export const authEvent = typeof window !== 'undefined' ? new EventTarget() : null;
+
+async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("spanel_token") || "" : "";
+  const headers = new Headers(init?.headers);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  const config = { ...init, headers };
+
+  const res = await fetch(input, config);
+
+  if ((res.status === 401 || res.status === 503) && typeof window !== "undefined") {
+    // Notify the UI to show the Login Screen (or Setup Screen for 503)
+    authEvent?.dispatchEvent(new Event("unauthorized"));
+  }
+  return res;
+}
+
 export async function fetchSystemMetrics(): Promise<SystemMetrics | null> {
   try {
-    const res = await fetch("/api/system/metrics");
+    const res = await apiFetch("/api/system/metrics");
     if (res.ok) return await res.json();
   } catch {}
   return null;
@@ -20,7 +39,7 @@ export async function fetchSystemMetrics(): Promise<SystemMetrics | null> {
 
 export async function fetchProjects(): Promise<Project[]> {
   try {
-    const res = await fetch("/api/projects");
+    const res = await apiFetch("/api/projects");
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data;
@@ -37,7 +56,7 @@ export async function createProject(payload: {
   healthcheck_path?: string;
 }): Promise<{ ok: boolean; data?: Project; error?: string }> {
   try {
-    const res = await fetch("/api/projects", {
+    const res = await apiFetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -54,7 +73,7 @@ export async function createProject(payload: {
 
 export async function postDeploy(projectId: string): Promise<{ ok: boolean; deployment_id?: string; error?: string }> {
   try {
-    const res = await fetch(`/api/projects/${projectId}/deploy`, { method: "POST" });
+    const res = await apiFetch(`/api/projects/${projectId}/deploy`, { method: "POST" });
     const data = await res.json();
     if (res.ok) {
       return { ok: true, deployment_id: data.deployment_id };
@@ -72,7 +91,7 @@ export async function postRollback(projectId: string): Promise<{
   error?: string;
 }> {
   try {
-    const res = await fetch(`/api/projects/${projectId}/rollback`, { method: "POST" });
+    const res = await apiFetch(`/api/projects/${projectId}/rollback`, { method: "POST" });
     const data = await res.json();
     if (res.ok) {
       return { ok: true, deployment_id: data.deployment_id, target_image_hash: data.target_image_hash };
@@ -85,7 +104,7 @@ export async function postRollback(projectId: string): Promise<{
 
 export async function fetchGitHubStatus(): Promise<GitHubStatus> {
   try {
-    const res = await fetch("/api/github/status");
+    const res = await apiFetch("/api/github/status");
     if (res.ok) return await res.json();
   } catch {}
   return { connected: false };
@@ -93,7 +112,7 @@ export async function fetchGitHubStatus(): Promise<GitHubStatus> {
 
 export async function fetchGitHubRepos(): Promise<GitHubRepo[]> {
   try {
-    const res = await fetch("/api/github/repos");
+    const res = await apiFetch("/api/github/repos");
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data;
@@ -104,7 +123,7 @@ export async function fetchGitHubRepos(): Promise<GitHubRepo[]> {
 
 export async function fetchGitHubBranches(owner: string, repo: string): Promise<string[]> {
   try {
-    const res = await fetch(`/api/github/repos/${owner}/${repo}/branches`);
+    const res = await apiFetch(`/api/github/repos/${owner}/${repo}/branches`);
     if (res.ok) {
       const data: GitHubBranch[] = await res.json();
       if (Array.isArray(data)) {
@@ -117,7 +136,7 @@ export async function fetchGitHubBranches(owner: string, repo: string): Promise<
 
 export async function connectGitHub(token: string): Promise<{ ok: boolean; data?: GitHubStatus; error?: string }> {
   try {
-    const res = await fetch("/api/github/connect", {
+    const res = await apiFetch("/api/github/connect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: token.trim() }),
@@ -134,7 +153,7 @@ export async function connectGitHub(token: string): Promise<{ ok: boolean; data?
 
 export async function disconnectGitHub(): Promise<boolean> {
   try {
-    const res = await fetch("/api/github/disconnect", { method: "POST" });
+    const res = await apiFetch("/api/github/disconnect", { method: "POST" });
     return res.ok;
   } catch {
     return false;
@@ -143,7 +162,7 @@ export async function disconnectGitHub(): Promise<boolean> {
 
 export async function fetchMarketplaceServices(): Promise<InstalledService[]> {
   try {
-    const res = await fetch("/api/marketplace");
+    const res = await apiFetch("/api/marketplace");
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data;
@@ -156,7 +175,7 @@ export async function installMarketplaceService(
   serviceName: string
 ): Promise<{ ok: boolean; data?: { service: InstalledService; credentials?: DBCredentials }; error?: string }> {
   try {
-    const res = await fetch("/api/marketplace/install", {
+    const res = await apiFetch("/api/marketplace/install", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ service_name: serviceName }),
@@ -176,7 +195,7 @@ export async function attachDatabaseToProject(
   marketplaceServiceId: string
 ): Promise<{ ok: boolean; data?: { message: string; injected_uri: string }; error?: string }> {
   try {
-    const res = await fetch(`/api/projects/${projectId}/attach-db`, {
+    const res = await apiFetch(`/api/projects/${projectId}/attach-db`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ marketplace_service_id: marketplaceServiceId }),
@@ -195,7 +214,7 @@ export async function deleteMarketplaceService(
   serviceId: string
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(`/api/marketplace/${serviceId}`, {
+    const res = await apiFetch(`/api/marketplace/${serviceId}`, {
       method: "DELETE",
     });
     if (res.ok) return { ok: true };
@@ -208,7 +227,7 @@ export async function deleteMarketplaceService(
 
 export async function fetchProjectEnvVars(projectId: string): Promise<EnvVarItem[]> {
   try {
-    const res = await fetch(`/api/projects/${projectId}/env`);
+    const res = await apiFetch(`/api/projects/${projectId}/env`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data;
@@ -223,7 +242,7 @@ export async function setProjectEnvVar(
   value: string
 ): Promise<{ ok: boolean; data?: EnvVarItem; error?: string }> {
   try {
-    const res = await fetch(`/api/projects/${projectId}/env`, {
+    const res = await apiFetch(`/api/projects/${projectId}/env`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key, value }),
@@ -241,7 +260,7 @@ export async function bulkSetProjectEnvVars(
   rawEnv: string
 ): Promise<{ ok: boolean; count?: number; error?: string }> {
   try {
-    const res = await fetch(`/api/projects/${projectId}/env/bulk`, {
+    const res = await apiFetch(`/api/projects/${projectId}/env/bulk`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ raw_env: rawEnv }),
@@ -259,7 +278,7 @@ export async function deleteProjectEnvVar(
   envId: string
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(`/api/projects/${projectId}/env/${envId}`, {
+    const res = await apiFetch(`/api/projects/${projectId}/env/${envId}`, {
       method: "DELETE",
     });
     if (res.ok) return { ok: true };
@@ -274,7 +293,7 @@ export async function triggerMarketplaceBackup(
   serviceId: string
 ): Promise<{ ok: boolean; data?: BackupInfo; error?: string }> {
   try {
-    const res = await fetch(`/api/marketplace/${serviceId}/backup`, { method: "POST" });
+    const res = await apiFetch(`/api/marketplace/${serviceId}/backup`, { method: "POST" });
     const data = await res.json();
     if (res.ok) return { ok: true, data: data.backup };
     return { ok: false, error: data.error || "Gagal membuat backup" };
@@ -285,7 +304,7 @@ export async function triggerMarketplaceBackup(
 
 export async function fetchMarketplaceBackups(serviceId: string): Promise<BackupInfo[]> {
   try {
-    const res = await fetch(`/api/marketplace/${serviceId}/backups`);
+    const res = await apiFetch(`/api/marketplace/${serviceId}/backups`);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) return data;
@@ -299,7 +318,7 @@ export async function restoreMarketplaceBackup(
   filename: string
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(`/api/marketplace/${serviceId}/restore`, {
+    const res = await apiFetch(`/api/marketplace/${serviceId}/restore`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ filename }),
@@ -312,3 +331,54 @@ export async function restoreMarketplaceBackup(
   }
 }
 
+export async function deleteProject(projectId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/projects/${projectId}`, { method: "DELETE" });
+    if (res.ok) return { ok: true };
+    const data = await res.json();
+    return { ok: false, error: data.error || "Failed to delete project" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function updateProject(projectId: string, payload: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/projects/${projectId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return { ok: true };
+    const data = await res.json();
+    return { ok: false, error: data.error || "Failed to update project" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function projectAction(projectId: string, action: 'start'|'stop'|'restart'): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/projects/${projectId}/${action}`, { method: "POST" });
+    if (res.ok) return { ok: true };
+    const data = await res.json();
+    return { ok: false, error: data.error || `Failed to ${action} project` };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function updateProjectDomain(projectId: string, domain: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/projects/${projectId}/domain`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain }),
+    });
+    if (res.ok) return { ok: true };
+    const data = await res.json();
+    return { ok: false, error: data.error || "Failed to update custom domain" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}

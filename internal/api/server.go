@@ -63,17 +63,23 @@ func (s *Server) setupRoutes() {
 	// API Group
 	apiGroup := s.app.Group("/api", s.requireAuth())
 
-	// System Health & Info
+	// System Health & Info & Setup
 	apiGroup.Get("/health", s.handleHealth)
+	apiGroup.Post("/setup", s.handleSetup)
 	apiGroup.Get("/system/metrics", s.handleSystemMetrics)
 
 	// Projects
 	apiGroup.Get("/projects", s.handleListProjects)
 	apiGroup.Post("/projects", s.handleCreateProject)
 	apiGroup.Get("/projects/:id", s.handleGetProject)
+	apiGroup.Delete("/projects/:id", s.handleDeleteProject)
+	apiGroup.Put("/projects/:id", s.handleUpdateProject)
 	apiGroup.Post("/projects/:id/domain", s.handleSetProjectDomain)
 	apiGroup.Post("/projects/:id/deploy", s.handleTriggerDeploy)
 	apiGroup.Post("/projects/:id/rollback", s.handleTriggerRollback)
+	apiGroup.Post("/projects/:id/start", s.handleStartProject)
+	apiGroup.Post("/projects/:id/stop", s.handleStopProject)
+	apiGroup.Post("/projects/:id/restart", s.handleRestartProject)
 	apiGroup.Post("/projects/:id/attach-db", s.handleAttachDatabase)
 	apiGroup.Get("/projects/:id/env", s.handleListProjectEnvVars)
 	apiGroup.Get("/projects/:id/env/:envId/reveal", s.handleRevealProjectEnvVar)
@@ -118,6 +124,7 @@ func (s *Server) setupRoutes() {
 	})
 
 	s.app.Get("/ws/logs/:deploymentId", websocket.New(s.handleLogStreamWebSocket))
+	s.app.Get("/ws/runtime-logs/:projectId", websocket.New(s.handleRuntimeLogStreamWebSocket))
 	s.app.Get("/ws/terminal/:projectId", websocket.New(s.handleTerminalWebSocket))
 
 	// Serve Embedded Next.js SPA

@@ -9,6 +9,8 @@ import {
   fetchGitHubRepos,
   postDeploy,
   postRollback,
+  projectAction,
+  authEvent,
 } from "@/lib/api";
 import { Navbar } from "@/components/layout/Navbar";
 import { NavTabs } from "@/components/layout/NavTabs";
@@ -20,8 +22,11 @@ import { DeployLogModal } from "@/components/modals/DeployLogModal";
 import { ImportProjectModal } from "@/components/modals/ImportProjectModal";
 import { EnvVarsModal } from "@/components/modals/EnvVarsModal";
 import { WebTerminalModal } from "@/components/modals/WebTerminalModal";
+import { ProjectSettingsModal } from "@/components/modals/ProjectSettingsModal";
+import { LoginScreen } from "@/components/layout/LoginScreen";
 
 export default function Dashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<DashboardTab>("projects");
   const [projects, setProjects] = useState<Project[]>([]);
   const [metrics, setMetrics] = useState<SystemMetrics>({
@@ -37,10 +42,12 @@ export default function Dashboard() {
   // Modals state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [logModalOpen, setLogModalOpen] = useState(false);
+  const [logModalType, setLogModalType] = useState<"build" | "runtime">("build");
   const [activeLogProject, setActiveLogProject] = useState<string>("");
   const [deployLogs, setDeployLogs] = useState<string[]>([]);
   const [activeEnvProject, setActiveEnvProject] = useState<Project | null>(null);
   const [terminalProject, setTerminalProject] = useState<Project | null>(null);
+  const [activeSettingsProject, setActiveSettingsProject] = useState<Project | null>(null);
 
   // GitHub state
   const [githubStatus, setGithubStatus] = useState<GitHubStatus | null>(null);
@@ -68,10 +75,21 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const handleUnauthorized = () => setIsAuthenticated(false);
+    authEvent?.addEventListener("unauthorized", handleUnauthorized);
+    
+    // Check initial token presence
+    if (typeof window !== "undefined" && !localStorage.getItem("spanel_token")) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsAuthenticated(false);
+    }
+
     const init = async () => {
       await loadInitialData();
     };
     init();
+
+    return () => authEvent?.removeEventListener("unauthorized", handleUnauthorized);
   }, [loadInitialData]);
 
   const refreshRepos = async () => {
@@ -84,6 +102,7 @@ export default function Dashboard() {
   // Deploy Action
   const handleDeploy = async (project: Project) => {
     setActiveLogProject(project.name);
+    setLogModalType("build");
     setLogModalOpen(true);
     setDeployLogs([`🚀 Menghubungi worker backend untuk deploy ${project.name}...`]);
 
@@ -102,7 +121,11 @@ export default function Dashboard() {
       ]);
 
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(`${protocol}//${window.location.host}/ws/logs/${deploymentId}`);
+      // We must append token to WS url or rely on cookie. Since we are using token, we'll need to pass it via query or wait for backend fix.
+      // But for now, we just pass token in protocols if supported, or rely on spanel_session cookie if the user has it.
+      // Next.js rewriting /ws doesn't append auth automatically.
+      const token = localStorage.getItem("spanel_token") || "";
+      const ws = new WebSocket(`${protocol}//${window.location.host}/ws/logs/${deploymentId}?token=${encodeURIComponent(token)}`);
 
       ws.onmessage = (event) => {
         if (event.data) {
@@ -120,6 +143,7 @@ export default function Dashboard() {
   // Rollback Action
   const handleRollback = async (project: Project) => {
     setActiveLogProject(project.name);
+    setLogModalType("build");
     setLogModalOpen(true);
     setDeployLogs([`🔄 Memicu rollback untuk ${project.name}...`]);
 
@@ -136,8 +160,39 @@ export default function Dashboard() {
     ]);
   };
 
+  const handleContainerAction = async (project: Project, action: 'start'|'stop'|'restart') => {
+    const res = await projectAction(project.id, action);
+    if (!res.ok) {
+      alert(`Failed to ${action} container: ${res.error}`);
+    } else {
+      alert(`Container ${action}ed successfully`);
+    }
+  };
+
   const handleViewLogs = (project: Project) => {
-    handleDeploy(project);
+    setActiveLogProject(project.name);
+    setLogModalType("runtime");
+    setLogModalOpen(true);
+    setDeployLogs([`[Logs] Connecting to runtime logs for ${project.name}...`]);
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const token = localStorage.getItem("spanel_token") || "";
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/runtime-logs/${project.id}?token=${encodeURIComponent(token)}`);
+
+    ws.onmessage = (event) => {
+      if (event.data) {
+        const lines = event.data.split("\n");
+        setDeployLogs((prev) => {
+          const newLogs = [...prev, ...lines.filter((l: string) => l.trim().length > 0)];
+          if (newLogs.length > 300) return newLogs.slice(newLogs.length - 300);
+          return newLogs;
+        });
+      }
+    };
+    
+    ws.onerror = () => {
+      setDeployLogs((prev) => [...prev, `[WS] Runtime log error or standby...`]);
+    };
   };
 
   const handleProjectCreated = (newProject: Project, shouldDeploy = false) => {
@@ -147,13 +202,19 @@ export default function Dashboard() {
     }
   };
 
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={() => {
+      setIsAuthenticated(true);
+      loadInitialData(); // reload dashboard data!
+    }} />;
+  }
+
   return (
-    <div className="min-h-screen text-slate-100 flex flex-col bg-[#05070a]">
+    <div className="min-h-screen text-gray-900 bg-gray-50 flex flex-col font-sans">
       {/* Top Navbar */}
       <Navbar metrics={metrics} onOpenNewProject={() => setIsImportModalOpen(true)} />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-6">
         {/* Navigation Tabs */}
         <NavTabs activeTab={activeTab} onTabChange={setActiveTab} projectCount={projects.length} />
 
@@ -166,6 +227,8 @@ export default function Dashboard() {
             onViewLogs={handleViewLogs}
             onOpenEnvVars={(proj) => setActiveEnvProject(proj)}
             onOpenTerminal={(proj) => setTerminalProject(proj)}
+            onOpenSettings={(proj) => setActiveSettingsProject(proj)}
+            onContainerAction={handleContainerAction}
           />
         )}
 
@@ -179,9 +242,16 @@ export default function Dashboard() {
       {/* Live Deploy Log Modal */}
       <DeployLogModal
         isOpen={logModalOpen}
-        projectName={activeLogProject}
+        projectName={`${activeLogProject} (${logModalType} logs)`}
         logs={deployLogs}
         onClose={() => setLogModalOpen(false)}
+      />
+
+      <ProjectSettingsModal
+        isOpen={!!activeSettingsProject}
+        project={activeSettingsProject}
+        onClose={() => setActiveSettingsProject(null)}
+        onSuccess={() => { setActiveSettingsProject(null); loadInitialData(); }}
       />
 
       {/* Environment Variables Modal */}

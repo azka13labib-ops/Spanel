@@ -60,10 +60,32 @@ func BuildWithNixpacksEphemeral(ctx context.Context, opts *BuildOptions) (*Build
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
 		// Use Nixpacks Ephemeral Container to generate Dockerfile without docker.sock
 		_, _ = combinedWriter.Write([]byte("⚡ No Dockerfile detected. Generating build plan with Nixpacks...\n"))
+		
+		// Ensure spanel-nixpacks-builder image exists
+		checkImg := exec.CommandContext(ctx, "docker", "image", "inspect", "spanel-nixpacks-builder")
+		if err := checkImg.Run(); err != nil {
+			_, _ = combinedWriter.Write([]byte("📦 Initializing sPanel Builder Engine (First time only, may take a minute)...\n"))
+			builderDockerfile := `FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN curl -sSL https://nixpacks.com/install.sh | bash
+ENTRYPOINT ["nixpacks"]`
+			tmpFile, _ := os.CreateTemp("", "Dockerfile.builder")
+			tmpFile.Write([]byte(builderDockerfile))
+			tmpFile.Close()
+			defer os.Remove(tmpFile.Name())
+
+			buildBuilderCmd := exec.CommandContext(ctx, "docker", "build", "-t", "spanel-nixpacks-builder", "-f", tmpFile.Name(), filepath.Dir(tmpFile.Name()))
+			buildBuilderCmd.Stdout = combinedWriter
+			buildBuilderCmd.Stderr = combinedWriter
+			if err := buildBuilderCmd.Run(); err != nil {
+				return nil, fmt.Errorf("failed to build nixpacks builder: %w", err)
+			}
+		}
+
 		genArgs := []string{
 			"run", "--rm",
 			"-v", fmt.Sprintf("%s:/app", absSourceDir),
-			"ghcr.io/railwayapp/nixpacks:latest",
+			"spanel-nixpacks-builder",
 			"build", "/app", "--out", "/app/.nixpacks",
 		}
 		for k, v := range opts.EnvVars {
@@ -77,7 +99,7 @@ func BuildWithNixpacksEphemeral(ctx context.Context, opts *BuildOptions) (*Build
 				Success:    false,
 				Duration:   time.Since(startTime),
 				LogPath:    logFilePath,
-				ErrorTrace: fmt.Sprintf("Nixpacks generation failed: %v", err),
+				ErrorTrace: fmt.Sprintf("Nixpacks generation failed: %v\nOutput: %s", err, string(genOut)),
 			}, err
 		}
 		relDockerfilePath = filepath.Join(".nixpacks", "Dockerfile")

@@ -9,6 +9,8 @@ interface ProjectGridProps {
   onViewLogs: (project: Project) => void;
   onOpenEnvVars: (project: Project) => void;
   onOpenTerminal?: (project: Project) => void;
+  onOpenSettings: (project: Project) => void;
+  onContainerAction?: (project: Project, action: 'start'|'stop'|'restart') => void;
 }
 
 export const ProjectGrid: React.FC<ProjectGridProps> = ({
@@ -18,6 +20,8 @@ export const ProjectGrid: React.FC<ProjectGridProps> = ({
   onViewLogs,
   onOpenEnvVars,
   onOpenTerminal,
+  onOpenSettings,
+  onContainerAction,
 }) => {
   return (
     <div className="space-y-6">
@@ -31,6 +35,8 @@ export const ProjectGrid: React.FC<ProjectGridProps> = ({
             onViewLogs={onViewLogs}
             onOpenEnvVars={onOpenEnvVars}
             onOpenTerminal={onOpenTerminal}
+            onOpenSettings={onOpenSettings}
+            onContainerAction={onContainerAction}
           />
         ))}
       </div>
