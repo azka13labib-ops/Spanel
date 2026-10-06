@@ -44,9 +44,9 @@ func (s *Server) requireSameOrigin() fiber.Handler {
 		origin := c.Get("Origin")
 		host := c.Get("Host")
 		
-		// If origin is present, ensure it matches the host to prevent CSRF
+		// If origin is present, ensure it matches the host to prevent CSRF (allow local dev port 3000)
 		if origin != "" && host != "" {
-			if !strings.Contains(origin, host) {
+			if !strings.Contains(origin, host) && !strings.Contains(origin, "localhost:3000") && !strings.Contains(origin, "127.0.0.1:3000") {
 				return c.Status(fiber.StatusForbidden).SendString("CSRF Origin Mismatch")
 			}
 		}
