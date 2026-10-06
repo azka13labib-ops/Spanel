@@ -86,7 +86,7 @@ ENTRYPOINT ["nixpacks"]`
 			"run", "--rm",
 			"-v", fmt.Sprintf("%s:/app", absSourceDir),
 			"spanel-nixpacks-builder",
-			"build", "/app", "--out", "/app/.nixpacks",
+			"build", "/app", "--out", "/app",
 		}
 		for k, v := range opts.EnvVars {
 			genArgs = append(genArgs, "--env", fmt.Sprintf("%s=%s", k, v))
