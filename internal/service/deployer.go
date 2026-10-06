@@ -1,9 +1,12 @@
 package service
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -102,17 +105,57 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		return append([]string{"-c", "credential.helper=", "-c", "http.extraHeader=" + authHeader}, baseArgs...)
 	}
 
+	runCmdStreaming := func(cmd *exec.Cmd) error {
+		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+		stdout, _ := cmd.StdoutPipe()
+		stderr, _ := cmd.StderrPipe()
+
+		if err := cmd.Start(); err != nil {
+			return err
+		}
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		streamFunc := func(r io.Reader) {
+			defer wg.Done()
+			scanner := bufio.NewScanner(r)
+			scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+				if atEOF && len(data) == 0 {
+					return 0, nil, nil
+				}
+				if i := bytes.IndexAny(data, "\r\n"); i >= 0 {
+					return i + 1, data[0:i], nil
+				}
+				if atEOF {
+					return len(data), data, nil
+				}
+				return 0, nil, nil
+			})
+			for scanner.Scan() {
+				text := strings.TrimSpace(scanner.Text())
+				if text != "" {
+					writeLog(text)
+				}
+			}
+		}
+
+		go streamFunc(stdout)
+		go streamFunc(stderr)
+
+		wg.Wait()
+		return cmd.Wait()
+	}
+
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		writeLog("Cloning repository %s ...", project.RepoFullName)
 		_ = os.RemoveAll(sourceDir)
-		cmd := exec.CommandContext(ctx, "git", gitArgs("clone", "--depth", "1", "--branch", project.Branch, repoURL, sourceDir)...)
-		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
-		if _, err := cmd.CombinedOutput(); err != nil {
+		cmd := exec.CommandContext(ctx, "git", gitArgs("clone", "--progress", "--depth", "1", "--branch", project.Branch, repoURL, sourceDir)...)
+		if err := runCmdStreaming(cmd); err != nil {
 			writeLog("Branch %s not found, retrying default branch...", project.Branch)
-			cmdFallback := exec.CommandContext(ctx, "git", gitArgs("clone", "--depth", "1", repoURL, sourceDir)...)
-			cmdFallback.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
-			if fbOut2, fbErr := cmdFallback.CombinedOutput(); fbErr != nil {
-				writeLog("❌ Git clone failed: %v\nOutput: %s", fbErr, string(fbOut2))
+			cmdFallback := exec.CommandContext(ctx, "git", gitArgs("clone", "--progress", "--depth", "1", repoURL, sourceDir)...)
+			if fbErr := runCmdStreaming(cmdFallback); fbErr != nil {
+				writeLog("❌ Git clone failed: %v", fbErr)
 				deployment.Status = "failed"
 				s.db.Save(&deployment)
 				return fmt.Errorf("git clone failed: %w", fbErr)
@@ -121,10 +164,8 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		writeLog("✓ Repository cloned successfully!")
 	} else {
 		writeLog("Pulling latest commits from repository...")
-		cmd := exec.CommandContext(ctx, "git", gitArgs("-C", sourceDir, "pull")...)
-		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
-		out, _ := cmd.CombinedOutput()
-		writeLog("%s", string(out))
+		cmd := exec.CommandContext(ctx, "git", gitArgs("-C", sourceDir, "pull", "--progress")...)
+		_ = runCmdStreaming(cmd)
 	}
 
 	// Remove .git directory after clone/pull so PAT doesn't get baked into the Docker image
@@ -174,7 +215,9 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	buildRes, err := builder.BuildWithNixpacksEphemeral(ctx, buildOpts)
 	now := time.Now()
 	deployment.FinishedAt = &now
-	deployment.LogFilePath = buildRes.LogPath
+	if buildRes != nil {
+		deployment.LogFilePath = buildRes.LogPath
+	}
 
 	if err != nil {
 		deployment.Status = "failed"
