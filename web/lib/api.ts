@@ -12,6 +12,16 @@ import {
 
 export const authEvent = typeof window !== 'undefined' ? new EventTarget() : null;
 
+export function getWebSocketUrl(path: string): string {
+  if (typeof window === "undefined") return "";
+  const isDev = window.location.port === "3000";
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = isDev ? `${window.location.hostname}:8080` : window.location.host;
+  const token = localStorage.getItem("spanel_token") || "";
+  const delimiter = path.includes("?") ? "&" : "?";
+  return `${protocol}//${host}${path}${token ? `${delimiter}token=${encodeURIComponent(token)}` : ""}`;
+}
+
 async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const token = typeof window !== "undefined" ? localStorage.getItem("spanel_token") || "" : "";
   const headers = new Headers(init?.headers);

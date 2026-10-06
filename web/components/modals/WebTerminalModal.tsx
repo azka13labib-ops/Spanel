@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { X, Terminal as TerminalIcon, Maximize2, Minimize2, Trash2, CornerDownLeft } from "lucide-react";
+import { getWebSocketUrl } from "@/lib/api";
 
 interface WebTerminalModalProps {
   isOpen: boolean;
@@ -30,12 +31,8 @@ export function WebTerminalModal({
   useEffect(() => {
     if (!isOpen || !containerId) return;
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws/terminal/${encodeURIComponent(containerId)}`;
-
-    const token = localStorage.getItem("spanel_token") || "";
-    const ws = new WebSocket(`${wsUrl}?token=${encodeURIComponent(token)}`);
+    const wsUrl = getWebSocketUrl(`/ws/terminal/${encodeURIComponent(containerId)}`);
+    const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
     ws.onopen = () => {

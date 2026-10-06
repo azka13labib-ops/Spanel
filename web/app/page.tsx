@@ -11,6 +11,7 @@ import {
   postRollback,
   projectAction,
   authEvent,
+  getWebSocketUrl,
 } from "@/lib/api";
 import { Navbar } from "@/components/layout/Navbar";
 import { NavTabs } from "@/components/layout/NavTabs";
@@ -120,12 +121,8 @@ export default function Dashboard() {
         `[Log Stream] Menghubungkan WebSocket...`,
       ]);
 
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      // We must append token to WS url or rely on cookie. Since we are using token, we'll need to pass it via query or wait for backend fix.
-      // But for now, we just pass token in protocols if supported, or rely on spanel_session cookie if the user has it.
-      // Next.js rewriting /ws doesn't append auth automatically.
-      const token = localStorage.getItem("spanel_token") || "";
-      const ws = new WebSocket(`${protocol}//${window.location.host}/ws/logs/${deploymentId}?token=${encodeURIComponent(token)}`);
+      const wsUrl = getWebSocketUrl(`/ws/logs/${deploymentId}`);
+      const ws = new WebSocket(wsUrl);
 
       ws.onmessage = (event) => {
         if (event.data) {
@@ -175,9 +172,8 @@ export default function Dashboard() {
     setLogModalOpen(true);
     setDeployLogs([`[Logs] Connecting to runtime logs for ${project.name}...`]);
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const token = localStorage.getItem("spanel_token") || "";
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/runtime-logs/${project.id}?token=${encodeURIComponent(token)}`);
+    const wsUrl = getWebSocketUrl(`/ws/runtime-logs/${project.id}`);
+    const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event) => {
       if (event.data) {
