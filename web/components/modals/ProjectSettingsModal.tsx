@@ -119,8 +119,11 @@ export function ProjectSettingsModal({ isOpen, onClose, project, onSuccess }: Pr
                 <label className="text-sm font-medium text-gray-700">Target Port</label>
                 <input
                   type="number"
-                  value={port}
-                  onChange={(e) => setPort(parseInt(e.target.value))}
+                  value={port || ""}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setPort(isNaN(val) ? 0 : val);
+                  }}
                   className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
                 />
               </div>
