@@ -317,6 +317,11 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	_ = exec.CommandContext(ctx, "docker", "rm", "-f", containerName).Run()
 
 	_ = exec.CommandContext(ctx, "docker", "network", "create", "spanel-net").Run()
+	spaDir := "dist"
+	if customSpa, ok := envMap["NIXPACKS_SPA_OUTPUT_DIR"]; ok {
+		spaDir = customSpa
+	}
+
 	runArgs := []string{
 		"run", "-d",
 		"--name", containerName,
@@ -330,6 +335,7 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		"--cap-drop", "ALL", 
 		"--cap-add", "NET_BIND_SERVICE",
 		"-e", fmt.Sprintf("PORT=%d", containerPort),
+		"-e", fmt.Sprintf("NIXPACKS_SPA_OUTPUT_DIR=%s", spaDir),
 		"-p", fmt.Sprintf("%d:%d", hostPort, containerPort),
 		"--label", "traefik.enable=true",
 		"--label", "traefik.docker.network=spanel-net",
