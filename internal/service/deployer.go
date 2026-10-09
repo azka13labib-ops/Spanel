@@ -379,6 +379,40 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	s.db.Save(&deployment)
 	s.db.Model(&project).Update("status", "running")
 
+	// Auto-configure host Nginx reverse proxy if host has Nginx (e.g. aaPanel or standard Linux Nginx)
+	nginxVhostDirs := []string{"/www/server/panel/vhost/nginx", "/etc/nginx/conf.d", "/etc/nginx/sites-enabled"}
+	for _, dir := range nginxVhostDirs {
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			domains := []string{project.MagicDomain}
+			if project.CustomDomain != "" {
+				domains = append(domains, project.CustomDomain)
+			}
+			confContent := fmt.Sprintf(`server {
+    listen 80;
+    server_name %s;
+
+    location / {
+        proxy_pass http://127.0.0.1:%d;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+`, strings.Join(domains, " "), hostPort)
+			confPath := filepath.Join(dir, fmt.Sprintf("spanel-%s.conf", project.Name))
+			if err := os.WriteFile(confPath, []byte(confContent), 0644); err == nil {
+				_ = exec.Command("/www/server/nginx/sbin/nginx", "-s", "reload").Run()
+				_ = exec.Command("nginx", "-s", "reload").Run()
+				writeLog("✓ Configured host Nginx reverse proxy for %s", strings.Join(domains, " "))
+			}
+			break
+		}
+	}
+
 	writeLog("\n🎉 DEPLOYMENT SUCCEEDED AND LIVE!")
 	writeLog("👉 Magic Domain: http://%s", project.MagicDomain)
 	writeLog("👉 Direct Port: http://localhost:%d", project.TargetPort)

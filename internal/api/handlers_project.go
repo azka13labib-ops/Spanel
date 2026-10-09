@@ -301,6 +301,17 @@ func (s *Server) handleDeleteProject(c *fiber.Ctx) error {
 	exec.Command("docker", "rm", "-f", "spanel-app-"+project.Name).Run()
 	exec.Command("docker", "volume", "rm", "spanel-app-"+project.Name+"_data").Run()
 
+	// Clean up host Nginx vhost if present
+	nginxVhostDirs := []string{"/www/server/panel/vhost/nginx", "/etc/nginx/conf.d", "/etc/nginx/sites-enabled"}
+	for _, dir := range nginxVhostDirs {
+		confPath := filepath.Join(dir, fmt.Sprintf("spanel-%s.conf", project.Name))
+		if _, err := os.Stat(confPath); err == nil {
+			_ = os.Remove(confPath)
+			_ = exec.Command("/www/server/nginx/sbin/nginx", "-s", "reload").Run()
+			_ = exec.Command("nginx", "-s", "reload").Run()
+		}
+	}
+
 	s.db.Unscoped().Where("project_id = ?", project.ID).Delete(&db.Deployment{})
 	s.db.Unscoped().Where("project_id = ?", project.ID).Delete(&db.EnvironmentVariable{})
 	s.db.Unscoped().Where("project_id = ?", project.ID).Delete(&db.Volume{})
