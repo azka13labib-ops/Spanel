@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +24,30 @@ import (
 	"spanel/internal/crypto"
 	"spanel/internal/db"
 )
+
+func isPortInUse(port int) bool {
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return true
+	}
+	_ = ln.Close()
+	return false
+}
+
+func getAvailablePort(preferredPort int) int {
+	if preferredPort <= 0 {
+		preferredPort = 3000
+	}
+	if !isPortInUse(preferredPort) {
+		return preferredPort
+	}
+	for p := preferredPort + 1; p < 65535; p++ {
+		if !isPortInUse(p) {
+			return p
+		}
+	}
+	return preferredPort
+}
 
 var projectMutexes sync.Map
 
@@ -106,7 +132,8 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	}
 
 	runCmdStreaming := func(cmd *exec.Cmd) error {
-		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/false")
+		cmd.Stdin = strings.NewReader("")
 		stdout, _ := cmd.StdoutPipe()
 		stderr, _ := cmd.StderrPipe()
 
@@ -135,7 +162,7 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 			for scanner.Scan() {
 				text := strings.TrimSpace(scanner.Text())
 				if text != "" {
-					writeLog(text)
+					writeLog("%s", text)
 				}
 			}
 		}
@@ -147,13 +174,25 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		return cmd.Wait()
 	}
 
-	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
-		writeLog("Cloning repository %s ...", project.RepoFullName)
-		_ = os.RemoveAll(sourceDir)
+	writeLog("Cloning repository %s ...", project.RepoFullName)
+	_ = os.RemoveAll(sourceDir)
+
+	var cloneErr error
+	if gitToken != "" {
 		cmd := exec.CommandContext(ctx, "git", gitArgs("clone", "--progress", "--depth", "1", "--branch", project.Branch, repoURL, sourceDir)...)
+		cloneErr = runCmdStreaming(cmd)
+		if cloneErr != nil {
+			writeLog("Clone with token failed or branch %s not found, checking fallback...", project.Branch)
+			_ = os.RemoveAll(sourceDir)
+		}
+	}
+
+	if gitToken == "" || cloneErr != nil {
+		cmd := exec.CommandContext(ctx, "git", "clone", "--progress", "--depth", "1", "--branch", project.Branch, repoURL, sourceDir)
 		if err := runCmdStreaming(cmd); err != nil {
 			writeLog("Branch %s not found, retrying default branch...", project.Branch)
-			cmdFallback := exec.CommandContext(ctx, "git", gitArgs("clone", "--progress", "--depth", "1", repoURL, sourceDir)...)
+			_ = os.RemoveAll(sourceDir)
+			cmdFallback := exec.CommandContext(ctx, "git", "clone", "--progress", "--depth", "1", repoURL, sourceDir)
 			if fbErr := runCmdStreaming(cmdFallback); fbErr != nil {
 				writeLog("❌ Git clone failed: %v", fbErr)
 				deployment.Status = "failed"
@@ -161,14 +200,10 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 				return fmt.Errorf("git clone failed: %w", fbErr)
 			}
 		}
-		writeLog("✓ Repository cloned successfully!")
-	} else {
-		writeLog("Pulling latest commits from repository...")
-		cmd := exec.CommandContext(ctx, "git", gitArgs("-C", sourceDir, "pull", "--progress")...)
-		_ = runCmdStreaming(cmd)
 	}
+	writeLog("✓ Repository cloned successfully!")
 
-	// Remove .git directory after clone/pull so PAT doesn't get baked into the Docker image
+	// Remove .git directory after clone so PAT doesn't get baked into the Docker image
 	_ = os.RemoveAll(gitDir)
 
 	// 2. Check Docker Engine Availability
@@ -257,8 +292,27 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		return err
 	}
 
+	hostPort := project.TargetPort
+	if hostPort <= 0 {
+		hostPort = 3000
+	}
+	if isPortInUse(hostPort) {
+		newPort := getAvailablePort(hostPort)
+		writeLog("⚠️ Port %d is already in use on host. Automatically allocated available port %d", hostPort, newPort)
+		hostPort = newPort
+		project.TargetPort = hostPort
+		s.db.Model(&project).Update("target_port", hostPort)
+	}
+
+	containerPort := 3000
+	if pStr, ok := envMap["PORT"]; ok {
+		if pVal, err := strconv.Atoi(pStr); err == nil && pVal > 0 {
+			containerPort = pVal
+		}
+	}
+
 	containerName := fmt.Sprintf("spanel-app-%s", project.Name)
-	writeLog("Launching container %s on port %d...", containerName, project.TargetPort)
+	writeLog("Launching container %s on host port %d (internal: %d)...", containerName, hostPort, containerPort)
 
 	_ = exec.CommandContext(ctx, "docker", "rm", "-f", containerName).Run()
 
@@ -275,7 +329,8 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		"--security-opt", "no-new-privileges",
 		"--cap-drop", "ALL", 
 		"--cap-add", "NET_BIND_SERVICE",
-		"-p", fmt.Sprintf("%d:%d", project.TargetPort, project.TargetPort),
+		"-e", fmt.Sprintf("PORT=%d", containerPort),
+		"-p", fmt.Sprintf("%d:%d", hostPort, containerPort),
 		"--label", "traefik.enable=true",
 		"--label", "traefik.docker.network=spanel-net",
 	}
@@ -287,7 +342,7 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	runArgs = append(runArgs, 
 		"--label", fmt.Sprintf("traefik.http.routers.%s.rule=%s", project.Name, traefikRule),
 		"--label", fmt.Sprintf("traefik.http.routers.%s.tls.certresolver=letsencrypt", project.Name),
-		"--label", fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port=%d", project.Name, project.TargetPort),
+		"--label", fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port=%d", project.Name, containerPort),
 	)
 
 	envFile, err := os.CreateTemp("", "spanel-env-*")
