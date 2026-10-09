@@ -1,103 +1,88 @@
-# sPanel — Self-Hosted PaaS Platform
+# sPanel (Smart PaaS Panel) 🚀
 
-> Modern, lightweight, and container-native Platform as a Service (PaaS) engine for single-node Linux servers and edge environments.
+> **Self-Hosted PaaS Ringan, Modern & Berbasis AI untuk Deployment Aplikasi Anda.**
 
-sPanel is a self-hosted PaaS platform designed as an efficient alternative to traditional cloud hosting platforms. It provides automated source-to-container builds, dynamic reverse proxy routing, environment management, and monitoring within a single lightweight binary built with Go and Next.js.
-
----
-
-## Key Capabilities
-
-- **Automated Container Builds**: Ephemeral containerized builder powered by Nixpacks and Docker Engine. Supports auto-detection for Node.js, React/Vite, Next.js, Python, Go, and custom Dockerfiles without host toolchain pollution.
-- **Dynamic Reverse Proxy & Routing**: Native Traefik integration managing automatic domain routing, port mapping, and SSL certificate termination for magic `.localhost` domains and custom domains.
-- **Single Binary Architecture**: High-performance Go Fiber v2 backend embedding the complete static Next.js frontend bundle via `//go:embed`, requiring zero external runtime dependencies.
-- **Git & Webhook Integration**: Secure GitHub repository integration supporting public and private repositories, custom branches, and automatic deployment triggers via incoming webhooks.
-- **Encrypted Secrets Management**: AES-256-GCM envelope encryption for environment variables, database credentials, and GitHub access tokens with server-side master key derivation.
-- **Real-Time Observability**: WebSocket-driven live build and runtime log streaming, container status indicators, and an interactive in-browser shell terminal.
-- **AI-Assisted Diagnostics**: Built-in automated error analyzer that inspects build failures, traces root causes, and recommends corrective deployment actions.
-- **Database Marketplace**: One-click provisioning for PostgreSQL, MySQL, Redis, and SQLite with automated environment variable injection and backup tooling.
+sPanel adalah platform self-hosted PaaS (Platform as a Service) alternatif modern untuk Vercel / Railway / Coolify yang dirancang sangat ringan, mudah digunakan, dan siap produksi di VPS Linux Anda. Dibangun menggunakan **Go (Single Binary)** dan antarmuka web modern dengan **Next.js & Tailwind CSS**.
 
 ---
 
-## Technical Architecture
+## ✨ Fitur Utama
 
-| Layer | Technologies |
-| :--- | :--- |
-| **Backend Core** | Go, Fiber v2, GORM, SQLite (WAL mode) |
-| **Frontend UI** | Next.js (App Router), React, Tailwind CSS, Lucide Icons |
-| **Orchestration** | Docker Engine API, Traefik Reverse Proxy |
-| **Build System** | Nixpacks Ephemeral Container Builder, Native Docker BuildKit |
-| **Networking** | WebSockets (Log Streaming & Interactive Shell), RESTful API |
-| **Security** | AES-256-GCM Native Go Crypto, CSRF Same-Origin Validation |
+- 🐳 **Docker-Native Execution**: Manajemen lifecycle container otomatis (build, start, stop, restart, delete) dengan Docker SDK.
+- ⚡ **Single Binary Deployment**: Backend Go meng-embed langsung static frontend Next.js (`//go:embed`). Tanpa dependensi runtime tambahan.
+- 🐙 **GitHub Integration**: Hubungkan akun GitHub dengan aman menggunakan Personal Access Token (PAT). Mendukung repository publik maupun privat serta pemilihan branch secara dinamis.
+- 🔍 **Zero-Config Buildpacks**: Deteksi otomatis arsitektur aplikasi (Node.js/Next.js, Python/FastAPI, Go, Static HTML/React, Dockerfile kustom).
+- 📊 **Real-time Metrics & Logs**: Monitoring penggunaan CPU, RAM, Network I/O, serta live build/container logs via Server-Sent Events (SSE).
+- 🔒 **Keamanan Terenkripsi**: Penyimpanan secret dan token sensitif dienkripsi menggunakan AES-256-GCM dengan master key lokal.
+- 🤖 **AI-Assisted Engine**: Diagnostik error deployment dan optimasi konfigurasi container otomatis berbasis AI.
+- 🎨 **Modern Sleek UI**: Antarmuka responsif bernuansa dark mode modern dengan UX intuitif.
 
 ---
 
-## Quickstart
+## 🛠️ Tech Stack
 
-### Prerequisites
+- **Backend**: [Go](https://go.dev/) (Gin Web Framework, Docker Go SDK, GORM / SQLite)
+- **Frontend**: [Next.js](https://nextjs.org/) (App Router, Tailwind CSS, Lucide Icons)
+- **Containerization**: [Docker Engine](https://www.docker.com/)
+- **Encryption**: Native Go Crypto (AES-256-GCM)
 
-- Linux or Windows environment with Docker Engine active.
-- Go 1.22+ and Node.js 18+ (for building from source).
+---
+
+## 🚀 Memulai (Quickstart)
+
+### Prasyarat
+- [Docker](https://docs.docker.com/engine/install/) terpasang dan service daemon aktif.
+- [Go 1.22+](https://go.dev/dl/) & [Node.js 18+](https://nodejs.org/) (jika ingin build dari source).
 
 ### 1. Clone Repository
-
 ```bash
 git clone https://github.com/azka13labib-ops/Spanel.git
 cd Spanel
 ```
 
-### 2. Build Frontend and Binary
-
+### 2. Build Frontend & Binary
 ```bash
-# Build frontend static bundle
+# Build Frontend
 cd web
 npm install
 npm run build
 cd ..
 
-# Build Go backend binary
+# Build Backend Go Binary
 go build -o spanel cmd/server/main.go
 ```
+*(Atau di Windows PowerShell, jalankan `./build.ps1`)*
 
-On Windows systems, the automated build script can be executed:
-```powershell
-./build.ps1
-```
-
-### 3. Run sPanel
-
+### 3. Jalankan sPanel
 ```bash
 ./spanel
 ```
-
-Access the management dashboard at `http://localhost:8080`. On first launch, follow the initial setup wizard to create the administrative credentials.
+Buka browser di `http://localhost:8080`.
 
 ---
 
-## Directory Structure
+## 📁 Struktur Direktori
 
 ```text
 ├── cmd/
-│   └── server/               # Application entry point and server initialization
+│   └── server/
+│       └── main.go           # Entry point aplikasi
 ├── internal/
-│   ├── api/                  # REST endpoints, WebSocket handlers, and authentication middleware
-│   ├── builder/              # Nixpacks ephemeral build engine and Docker execution
-│   ├── config/               # Configuration loading and environment resolution
-│   ├── crypto/               # AES-256-GCM encryption and decryption helpers
-│   ├── db/                   # Database models, SQLite initialization, and migrations
-│   ├── queue/                # Asynchronous internal deployment job worker queue
-│   └── service/              # Core business services (Deployer, Traefik, Janitor)
-├── web/                      # Next.js frontend application
-│   ├── app/                  # Main application views and routing
-│   ├── components/           # UI components, modals, and management views
-│   └── lib/                  # API client bindings and WebSocket helpers
-├── build.ps1                 # Windows build script
-├── Makefile                  # Cross-platform build automation
-└── README.md                 # Project documentation
+│   ├── api/                  # REST API routes & HTTP handlers
+│   ├── buildpack/            # Auto-detection & Dockerfile generator
+│   ├── config/               # Manajemen konfigurasi & env
+│   ├── docker/               # Wrapper Docker API & resource streaming
+│   ├── models/               # Skema database SQLite
+│   └── security/             # AES-256-GCM encryption & key management
+├── web/                      # Frontend Next.js
+│   ├── app/                  # App Router & UI components
+│   └── out/                  # Hasil static export (embedded ke binary)
+├── build.ps1                 # Script build otomatis Windows
+├── Makefile                  # Build tasks untuk Linux/macOS
+└── README.md
 ```
 
 ---
 
-## License
-
-This project is licensed under the MIT License. Refer to the LICENSE file for details.
+## 📄 Lisensi
+Didistribusikan di bawah lisensi MIT. Silakan gunakan dan kembangkan sesuai kebutuhan Anda.

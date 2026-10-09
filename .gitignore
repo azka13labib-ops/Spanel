@@ -2,6 +2,7 @@
 spanel
 spanel.exe
 spanel-linux-amd64
+spanel_linux
 
 # Runtime & Local Data
 data/
