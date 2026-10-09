@@ -34,7 +34,7 @@ func (s *Server) handleLogStreamWebSocket(c *websocket.Conn) {
 	}()
 
 	var file *os.File
-	for file == nil {
+	for {
 		if f, err := os.Open(logFilePath); err == nil {
 			file = f
 			break

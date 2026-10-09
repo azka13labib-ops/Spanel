@@ -2,7 +2,9 @@ package api
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -236,6 +238,23 @@ func (s *Server) handleGetDeployment(c *fiber.Ctx) error {
 	return c.JSON(deployment)
 }
 
+func (s *Server) handleGetDeploymentLogs(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var deployment db.Deployment
+	if err := s.db.First(&deployment, "id = ?", id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "deployment not found"})
+	}
+	logFilePath := deployment.LogFilePath
+	if logFilePath == "" {
+		logFilePath = filepath.Join(".", "data", "logs", fmt.Sprintf("%s.log", id))
+	}
+	content, err := os.ReadFile(logFilePath)
+	if err != nil {
+		return c.JSON(fiber.Map{"logs": ""})
+	}
+	return c.JSON(fiber.Map{"logs": string(content)})
+}
+
 type SetDomainInput struct {
 	Domain string `json:"domain"`
 }
@@ -282,7 +301,11 @@ func (s *Server) handleDeleteProject(c *fiber.Ctx) error {
 	exec.Command("docker", "rm", "-f", "spanel-app-"+project.Name).Run()
 	exec.Command("docker", "volume", "rm", "spanel-app-"+project.Name+"_data").Run()
 
-	if err := s.db.Delete(&project).Error; err != nil {
+	s.db.Unscoped().Where("project_id = ?", project.ID).Delete(&db.Deployment{})
+	s.db.Unscoped().Where("project_id = ?", project.ID).Delete(&db.EnvironmentVariable{})
+	s.db.Unscoped().Where("project_id = ?", project.ID).Delete(&db.Volume{})
+
+	if err := s.db.Unscoped().Delete(&project).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete project"})
 	}
 	return c.JSON(fiber.Map{"message": "Project deleted successfully"})

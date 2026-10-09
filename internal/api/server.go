@@ -89,6 +89,7 @@ func (s *Server) setupRoutes() {
 
 	// Deployments
 	apiGroup.Get("/deployments/:id", s.handleGetDeployment)
+	apiGroup.Get("/deployments/:id/logs", s.handleGetDeploymentLogs)
 
 	// Webhooks (Auto-Deploy on Push)
 	apiGroup.Post("/webhooks/github", s.handleGitHubWebhook)
