@@ -10,7 +10,6 @@ import (
 
 func (s *Server) requireAuth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Skip authentication for health check and webhooks and setup
 		path := c.Path()
 		if path == "/api/health" || path == "/api/setup" || path == "/api/webhooks/github" || (strings.HasPrefix(path, "/api/projects/") && strings.HasSuffix(path, "/webhook")) {
 			return c.Next()
@@ -44,8 +43,7 @@ func (s *Server) requireSameOrigin() fiber.Handler {
 		origin := c.Get("Origin")
 		host := c.Get("Host")
 		
-		// If origin is present, ensure it matches the host to prevent CSRF (allow local dev port 3000)
-		if origin != "" && host != "" {
+			if origin != "" && host != "" {
 			if !strings.Contains(origin, host) && !strings.Contains(origin, "localhost:3000") && !strings.Contains(origin, "127.0.0.1:3000") {
 				return c.Status(fiber.StatusForbidden).SendString("CSRF Origin Mismatch")
 			}

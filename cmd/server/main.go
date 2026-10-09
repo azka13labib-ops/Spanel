@@ -45,7 +45,7 @@ func main() {
 	defer cleaner.Stop()
 
 	embeddedWebFS := spanel.GetWebFS()
-	srv := api.NewServer(database, q, cfg, embeddedWebFS)
+	srv := api.NewServer(database, q, cfg, embeddedWebFS, aiAgent)
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)

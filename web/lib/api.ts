@@ -8,6 +8,7 @@ import {
   DBCredentials,
   EnvVarItem,
   BackupInfo,
+  AIConfig,
 } from "@/types";
 
 export const authEvent = typeof window !== 'undefined' ? new EventTarget() : null;
@@ -390,5 +391,60 @@ export async function updateProjectDomain(projectId: string, domain: string): Pr
     return { ok: false, error: data.error || "Failed to update custom domain" };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function fetchAIConfig(): Promise<AIConfig | null> {
+  try {
+    const res = await apiFetch("/api/ai/config");
+    if (res.ok) return await res.json();
+  } catch {}
+  return null;
+}
+
+export async function saveAIConfig(payload: {
+  provider_name: string;
+  api_key: string;
+}): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const res = await apiFetch("/api/ai/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) return { ok: true, message: data.message };
+    return { ok: false, error: data.error || "Gagal menyimpan konfigurasi AI" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || "Koneksi gagal" };
+  }
+}
+
+export async function deleteAIConfig(): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const res = await apiFetch("/api/ai/config", { method: "DELETE" });
+    const data = await res.json();
+    if (res.ok) return { ok: true, message: data.message };
+    return { ok: false, error: data.error || "Gagal menghapus konfigurasi AI" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || "Koneksi gagal" };
+  }
+}
+
+export async function testAIConfig(payload: {
+  provider_name?: string;
+  api_key?: string;
+}): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const res = await apiFetch("/api/ai/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) return { ok: true, message: data.message };
+    return { ok: false, error: data.error || "Gagal menguji koneksi AI" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || "Koneksi gagal" };
   }
 }

@@ -15,6 +15,7 @@ import (
 	websocket "github.com/gofiber/websocket/v2"
 	"gorm.io/gorm"
 
+	"spanel/internal/ai"
 	"spanel/internal/config"
 	"spanel/internal/queue"
 	"spanel/internal/service"
@@ -27,9 +28,13 @@ type Server struct {
 	cfg        *config.Config
 	embeddedFS fs.FS
 	dbManager  *service.DatabaseManager
+	aiAgent    *ai.AIAgent
 }
 
-func NewServer(database *gorm.DB, q *queue.Queue, cfg *config.Config, embeddedFS fs.FS) *Server {
+func NewServer(database *gorm.DB, q *queue.Queue, cfg *config.Config, embeddedFS fs.FS, aiAgent *ai.AIAgent) *Server {
+	if aiAgent == nil {
+		aiAgent = ai.NewAIAgent()
+	}
 	app := fiber.New(fiber.Config{
 		AppName:               "sPanel v1.0 (Zero-Config PaaS)",
 		DisableStartupMessage: false,
@@ -53,6 +58,7 @@ func NewServer(database *gorm.DB, q *queue.Queue, cfg *config.Config, embeddedFS
 		cfg:        cfg,
 		embeddedFS: embeddedFS,
 		dbManager:  service.NewDatabaseManager(database, cfg),
+		aiAgent:    aiAgent,
 	}
 
 	s.setupRoutes()
@@ -87,15 +93,12 @@ func (s *Server) setupRoutes() {
 	apiGroup.Post("/projects/:id/env/bulk", s.handleBulkSetProjectEnvVars)
 	apiGroup.Delete("/projects/:id/env/:envId", s.handleDeleteProjectEnvVar)
 
-	// Deployments
 	apiGroup.Get("/deployments/:id", s.handleGetDeployment)
 	apiGroup.Get("/deployments/:id/logs", s.handleGetDeploymentLogs)
 
-	// Webhooks (Auto-Deploy on Push)
 	apiGroup.Post("/webhooks/github", s.handleGitHubWebhook)
 	apiGroup.Post("/projects/:id/webhook", s.handleProjectWebhook)
 
-	// Marketplace (1-Click Databases & Backups)
 	apiGroup.Get("/marketplace", s.handleListMarketplace)
 	apiGroup.Post("/marketplace/install", s.handleInstallMarketplaceService)
 	apiGroup.Get("/marketplace/:id/credentials", s.handleGetMarketplaceCredentials)
@@ -104,18 +107,19 @@ func (s *Server) setupRoutes() {
 	apiGroup.Get("/marketplace/:id/backups", s.handleListMarketplaceBackups)
 	apiGroup.Post("/marketplace/:id/restore", s.handleRestoreMarketplaceBackup)
 
-	// AI Remediation
+	apiGroup.Get("/ai/config", s.handleGetAIConfig)
+	apiGroup.Post("/ai/config", s.handleSaveAIConfig)
+	apiGroup.Delete("/ai/config", s.handleDeleteAIConfig)
+	apiGroup.Post("/ai/test", s.handleTestAIConfig)
 	apiGroup.Get("/remediations/:id", s.handleGetRemediation)
 	apiGroup.Post("/remediations/:id/apply", s.handleApplyRemediation)
 
-	// GitHub Integration
 	apiGroup.Get("/github/status", s.handleGitHubStatus)
 	apiGroup.Post("/github/connect", s.handleGitHubConnect)
 	apiGroup.Post("/github/disconnect", s.handleGitHubDisconnect)
 	apiGroup.Get("/github/repos", s.handleGitHubListRepos)
 	apiGroup.Get("/github/repos/:owner/:repo/branches", s.handleGitHubListBranches)
 
-	// WebSockets (Log Streaming & Web Terminal)
 	s.app.Use("/ws", s.requireAuth(), s.requireSameOrigin(), func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) {
 			c.Locals("allowed", true)
@@ -128,26 +132,22 @@ func (s *Server) setupRoutes() {
 	s.app.Get("/ws/runtime-logs/:projectId", websocket.New(s.handleRuntimeLogStreamWebSocket))
 	s.app.Get("/ws/terminal/:projectId", websocket.New(s.handleTerminalWebSocket))
 
-	// Serve Embedded Next.js SPA
 	if s.embeddedFS != nil {
 		s.setupStaticSPA()
 	}
 }
 
 func (s *Server) setupStaticSPA() {
-	// Use Go http.FS wrapper on embeddedFS
 	fileServer := http.FS(s.embeddedFS)
 
 	s.app.Use("/", filesystem.New(filesystem.Config{
 		Root:         fileServer,
 		Index:        "index.html",
-		NotFoundFile: "index.html", // SPA fallback for client-side routing
+		NotFoundFile: "index.html",
 		Browse:       false,
 	}))
 
-	// Fallback route for HTML5 History API (Next.js App router)
 	s.app.Use(func(c *fiber.Ctx) error {
-		// If path starts with /api or /ws, return 404 JSON
 		path := c.Path()
 		if strings.HasPrefix(path, "/api") || strings.HasPrefix(path, "/ws") {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -155,7 +155,6 @@ func (s *Server) setupStaticSPA() {
 			})
 		}
 
-		// Otherwise serve root index.html from embedded FS
 		file, err := s.embeddedFS.Open("index.html")
 		if err != nil {
 			return c.Status(fiber.StatusOK).SendString("sPanel Backend Running (Frontend build not yet embedded)")

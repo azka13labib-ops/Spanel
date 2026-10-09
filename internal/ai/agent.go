@@ -209,3 +209,69 @@ func (a *AIAgent) callOpenAI(ctx context.Context, apiKey string, prompt string) 
 
 	return &plan, nil
 }
+
+// TestConnection validates the API key against the chosen AI provider
+func (a *AIAgent) TestConnection(ctx context.Context, provider string, apiKey string) (string, error) {
+	if apiKey == "" {
+		return "", errors.New("API key tidak boleh kosong")
+	}
+
+	switch provider {
+	case "gemini":
+		url := "https://generativelanguage.googleapis.com/v1beta/models?key=" + apiKey
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return "", err
+		}
+		resp, err := a.httpClient.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("gagal terhubung ke Google Gemini: %w", err)
+		}
+		defer resp.Body.Close()
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != http.StatusOK {
+			var errResp struct {
+				Error struct {
+					Message string `json:"message"`
+					Status  string `json:"status"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(bodyBytes, &errResp); err == nil && errResp.Error.Message != "" {
+				return "", fmt.Errorf("Gemini error (%d): %s", resp.StatusCode, errResp.Error.Message)
+			}
+			return "", fmt.Errorf("Gemini API error (status %d): %s", resp.StatusCode, string(bodyBytes))
+		}
+		return "Koneksi Google Gemini API berhasil diverifikasi!", nil
+
+	case "openai":
+		url := "https://api.openai.com/v1/models"
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return "", err
+		}
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		resp, err := a.httpClient.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("gagal terhubung ke OpenAI: %w", err)
+		}
+		defer resp.Body.Close()
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != http.StatusOK {
+			var errResp struct {
+				Error struct {
+					Message string `json:"message"`
+					Type    string `json:"type"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(bodyBytes, &errResp); err == nil && errResp.Error.Message != "" {
+				return "", fmt.Errorf("OpenAI error (%d): %s", resp.StatusCode, errResp.Error.Message)
+			}
+			return "", fmt.Errorf("OpenAI API error (status %d): %s", resp.StatusCode, string(bodyBytes))
+		}
+		return "Koneksi OpenAI API berhasil diverifikasi!", nil
+
+	default:
+		return "", fmt.Errorf("provider AI '%s' tidak didukung (pilih 'gemini' atau 'openai')", provider)
+	}
+}
+

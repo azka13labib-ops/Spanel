@@ -106,7 +106,7 @@ func (q *Queue) processNextJob(ctx context.Context) {
 		RETURNING *`).Scan(&job)
 
 	if res.Error != nil || job.ID == "" {
-		return // No pending jobs
+		return 
 	}
 
 	log.Printf("[QUEUE] Processing job ID: %s, Type: %s, Target: %s", job.ID, job.JobType, job.TargetID)

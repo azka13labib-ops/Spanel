@@ -165,6 +165,9 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 					writeLog("%s", text)
 				}
 			}
+			if err := scanner.Err(); err != nil {
+				writeLog("[STREAM ERROR] %v", err)
+			}
 		}
 
 		go streamFunc(stdout)
@@ -275,6 +278,16 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 			if aiProvider == "" {
 				aiProvider = "gemini"
 			}
+
+			// Check database for saved AI provider key
+			var savedProv db.AIProvider
+			if err := s.db.First(&savedProv, "user_id = ?", "default-admin").Error; err == nil && savedProv.APIKeyEncrypted != "" {
+				if decKey, decErr := crypto.Decrypt(savedProv.APIKeyEncrypted, s.cfg.MasterKey, "ai:default-admin"); decErr == nil && decKey != "" {
+					aiKey = decKey
+					aiProvider = savedProv.ProviderName
+				}
+			}
+
 			if aiKey != "" {
 				plan, diagErr := s.aiAgent.DiagnoseAndRemediate(ctx, aiProvider, aiKey, deployment.RetryCount, logCtx)
 				if diagErr == nil && plan != nil {
