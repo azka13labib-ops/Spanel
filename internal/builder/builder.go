@@ -58,40 +58,91 @@ func BuildWithNixpacksEphemeral(ctx context.Context, opts *BuildOptions) (*Build
 	relDockerfilePath := "Dockerfile"
 
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
-		// Use Nixpacks Ephemeral Container to generate Dockerfile without docker.sock
+		// Use Nixpacks to generate Dockerfile without docker.sock
 		_, _ = combinedWriter.Write([]byte("⚡ No Dockerfile detected. Generating build plan with Nixpacks...\n"))
-		
-		// Ensure spanel-nixpacks-builder image exists
-		checkImg := exec.CommandContext(ctx, "docker", "image", "inspect", "spanel-nixpacks-builder")
-		if err := checkImg.Run(); err != nil {
-			_, _ = combinedWriter.Write([]byte("📦 Initializing sPanel Builder Engine (First time only, may take a minute)...\n"))
-			builderDockerfile := `FROM ubuntu:22.04
-RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
-RUN curl -sSL https://nixpacks.com/install.sh | bash
-ENTRYPOINT ["nixpacks"]`
-			tmpFile, _ := os.CreateTemp("", "Dockerfile.builder")
-			tmpFile.Write([]byte(builderDockerfile))
-			tmpFile.Close()
-			defer os.Remove(tmpFile.Name())
 
-			buildBuilderCmd := exec.CommandContext(ctx, "docker", "build", "-t", "spanel-nixpacks-builder", "-f", tmpFile.Name(), filepath.Dir(tmpFile.Name()))
-			buildBuilderCmd.Stdout = combinedWriter
-			buildBuilderCmd.Stderr = combinedWriter
-			if err := buildBuilderCmd.Run(); err != nil {
-				return nil, fmt.Errorf("failed to build nixpacks builder: %w", err)
+		hasNodeVersion := false
+		hasInstallCmd := false
+		for k := range opts.EnvVars {
+			if k == "NIXPACKS_NODE_VERSION" || k == "NODE_VERSION" {
+				hasNodeVersion = true
+			}
+			if k == "NIXPACKS_INSTALL_CMD" {
+				hasInstallCmd = true
 			}
 		}
 
-		genArgs := []string{
-			"run", "--rm",
-			"-v", fmt.Sprintf("%s:/app", absSourceDir),
-			"spanel-nixpacks-builder",
-			"build", "/app", "--out", "/app",
+		// Detect if repository uses rolldown / native bindings that need platform specific binary
+		var extraInstallCmd string
+		pkgJsonPath := filepath.Join(opts.SourceDir, "package.json")
+		if pkgData, readErr := os.ReadFile(pkgJsonPath); readErr == nil {
+			pkgContent := string(pkgData)
+			if strings.Contains(pkgContent, "rolldown") {
+				extraInstallCmd = "npm install && npm install --no-save @rolldown/binding-linux-x64-gnu"
+			}
 		}
-		for k, v := range opts.EnvVars {
-			genArgs = append(genArgs, "--env", fmt.Sprintf("%s=%s", k, v))
+
+		// Check if host has nixpacks binary directly installed (faster)
+		nixpacksBin, lookErr := exec.LookPath("nixpacks")
+		if lookErr != nil {
+			if _, statErr := os.Stat("/usr/local/bin/nixpacks"); statErr == nil {
+				nixpacksBin = "/usr/local/bin/nixpacks"
+			}
 		}
-		genCmd := exec.CommandContext(ctx, "docker", genArgs...)
+
+		var genCmd *exec.Cmd
+		if nixpacksBin != "" {
+			genArgs := []string{"build", absSourceDir, "--out", absSourceDir}
+			for k, v := range opts.EnvVars {
+				genArgs = append(genArgs, "--env", fmt.Sprintf("%s=%s", k, v))
+			}
+			if !hasNodeVersion {
+				genArgs = append(genArgs, "--env", "NIXPACKS_NODE_VERSION=22")
+			}
+			if !hasInstallCmd && extraInstallCmd != "" {
+				genArgs = append(genArgs, "--env", fmt.Sprintf("NIXPACKS_INSTALL_CMD=%s", extraInstallCmd))
+			}
+			genCmd = exec.CommandContext(ctx, nixpacksBin, genArgs...)
+		} else {
+			// Ensure spanel-nixpacks-builder image exists
+			checkImg := exec.CommandContext(ctx, "docker", "image", "inspect", "spanel-nixpacks-builder")
+			if err := checkImg.Run(); err != nil {
+				_, _ = combinedWriter.Write([]byte("📦 Initializing sPanel Builder Engine (First time only, may take a minute)...\n"))
+				builderDockerfile := `FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN curl -sSL https://nixpacks.com/install.sh | bash
+ENTRYPOINT ["nixpacks"]`
+				tmpFile, _ := os.CreateTemp("", "Dockerfile.builder")
+				tmpFile.Write([]byte(builderDockerfile))
+				tmpFile.Close()
+				defer os.Remove(tmpFile.Name())
+
+				buildBuilderCmd := exec.CommandContext(ctx, "docker", "build", "-t", "spanel-nixpacks-builder", "-f", tmpFile.Name(), filepath.Dir(tmpFile.Name()))
+				buildBuilderCmd.Stdout = combinedWriter
+				buildBuilderCmd.Stderr = combinedWriter
+				if err := buildBuilderCmd.Run(); err != nil {
+					return nil, fmt.Errorf("failed to build nixpacks builder: %w", err)
+				}
+			}
+
+			genArgs := []string{
+				"run", "--rm",
+				"-v", fmt.Sprintf("%s:/app", absSourceDir),
+				"spanel-nixpacks-builder",
+				"build", "/app", "--out", "/app",
+			}
+			for k, v := range opts.EnvVars {
+				genArgs = append(genArgs, "--env", fmt.Sprintf("%s=%s", k, v))
+			}
+			if !hasNodeVersion {
+				genArgs = append(genArgs, "--env", "NIXPACKS_NODE_VERSION=22")
+			}
+			if !hasInstallCmd && extraInstallCmd != "" {
+				genArgs = append(genArgs, "--env", fmt.Sprintf("NIXPACKS_INSTALL_CMD=%s", extraInstallCmd))
+			}
+			genCmd = exec.CommandContext(ctx, "docker", genArgs...)
+		}
+
 		genOut, err := genCmd.CombinedOutput()
 		_, _ = combinedWriter.Write(genOut)
 		if err != nil {
