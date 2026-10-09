@@ -37,13 +37,25 @@ export const Navbar: React.FC<NavbarProps> = ({ metrics, githubStatus, onOpenNew
 
       {/* System Resource Metrics */}
       <div className="hidden md:flex items-center gap-3 text-xs text-gray-600">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-50 border border-gray-200/70" title="CPU Cores Available">
-          <Cpu className="h-3.5 w-3.5 text-gray-400" />
-          <span>{metrics.num_cpu} Cores</span>
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-50 border border-gray-200/70"
+          title={`Host CPU: ${metrics.host_cpu_percent !== undefined ? metrics.host_cpu_percent.toFixed(1) : 0}% (${metrics.num_cpu} Cores, 1m Load: ${metrics.load_avg_1?.toFixed(2) ?? "0"})`}
+        >
+          <Cpu className="h-3.5 w-3.5 text-indigo-500" />
+          <span className="font-medium">
+            {metrics.host_cpu_percent !== undefined ? `${Math.round(metrics.host_cpu_percent)}% CPU (${metrics.num_cpu} Cores)` : `${metrics.num_cpu} Cores`}
+          </span>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-50 border border-gray-200/70" title="System Memory Allocated">
-          <Server className="h-3.5 w-3.5 text-gray-400" />
-          <span>{metrics.alloc_mb} MB RAM</span>
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-50 border border-gray-200/70"
+          title={`Host RAM: ${metrics.host_used_ram_mb ?? metrics.alloc_mb} MB / ${metrics.host_total_ram_mb ?? metrics.sys_mb} MB (${Math.round(metrics.host_ram_percent ?? 0)}%)`}
+        >
+          <Server className="h-3.5 w-3.5 text-emerald-500" />
+          <span className="font-medium">
+            {metrics.host_total_ram_mb && metrics.host_total_ram_mb > 0
+              ? `${(metrics.host_used_ram_mb! / 1024).toFixed(1)} / ${(metrics.host_total_ram_mb / 1024).toFixed(1)} GB RAM`
+              : `${metrics.alloc_mb} MB RAM`}
+          </span>
         </div>
         {metrics.host_ip && (
           <button

@@ -16,9 +16,16 @@ export interface SystemMetrics {
   arch: string;
   num_cpu: number;
   alloc_mb: number;
+  total_mb?: number;
   sys_mb: number;
   goroutines: number;
   host_ip: string;
+  host_total_ram_mb?: number;
+  host_used_ram_mb?: number;
+  host_free_ram_mb?: number;
+  host_ram_percent?: number;
+  host_cpu_percent?: number;
+  load_avg_1?: number;
 }
 
 export interface GitHubOwner {
@@ -97,4 +104,19 @@ export interface BackupInfo {
 }
 
 export type DashboardTab = "projects" | "marketplace" | "ai" | "server";
+
+export interface AIConfig {
+  is_configured: boolean;
+  provider_name?: "gemini" | "openai" | "";
+  masked_key?: string;
+}
+
+export interface AIRemediation {
+  id: string;
+  deployment_id: string;
+  error_category: string;
+  ai_analysis: string;
+  is_applied: boolean;
+  created_at?: string;
+}
 
