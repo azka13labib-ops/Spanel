@@ -17,6 +17,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { NavTabs } from "@/components/layout/NavTabs";
 import { ProjectGrid } from "@/components/projects/ProjectGrid";
 import { MarketplaceView } from "@/components/marketplace/MarketplaceView";
+import { DNSManagerView } from "@/components/dns/DNSManagerView";
 import { AIAssistantView } from "@/components/ai/AIAssistantView";
 import { ServerHygieneView } from "@/components/server/ServerHygieneView";
 import { DeployLogModal } from "@/components/modals/DeployLogModal";
@@ -271,6 +272,8 @@ export default function Dashboard() {
         )}
 
         {activeTab === "marketplace" && <MarketplaceView projects={projects} />}
+
+        {activeTab === "dns" && <DNSManagerView hostIp={metrics.host_ip} />}
 
         {activeTab === "ai" && <AIAssistantView />}
 

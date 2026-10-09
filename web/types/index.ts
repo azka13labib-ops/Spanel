@@ -103,7 +103,7 @@ export interface BackupInfo {
   service: string;
 }
 
-export type DashboardTab = "projects" | "marketplace" | "ai" | "server";
+export type DashboardTab = "projects" | "marketplace" | "dns" | "ai" | "server";
 
 export interface AIConfig {
   is_configured: boolean;
@@ -118,5 +118,43 @@ export interface AIRemediation {
   ai_analysis: string;
   is_applied: boolean;
   created_at?: string;
+}
+
+export interface DNSConfig {
+  is_configured: boolean;
+  masked_token?: string;
+}
+
+export interface CloudflareZone {
+  id: string;
+  name: string;
+  status: string;
+  name_servers?: string[];
+}
+
+export interface DNSRecordItem {
+  id: string;
+  zone_id: string;
+  zone_name: string;
+  name: string;
+  type: string;
+  content: string;
+  proxiable?: boolean;
+  proxied?: boolean;
+  ttl: number;
+  comment?: string;
+  priority?: number;
+  created_on?: string;
+  modified_on?: string;
+}
+
+export interface CreateDNSRecordInput {
+  type: string;
+  name: string;
+  content: string;
+  ttl: number;
+  proxied: boolean;
+  comment: string;
+  priority?: number;
 }
 

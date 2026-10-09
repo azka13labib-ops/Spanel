@@ -61,6 +61,7 @@ func Init(dbPath string) (*gorm.DB, error) {
 		&InternalQueueJob{},
 		&AIRemediation{},
 		&MarketplaceService{},
+		&DNSProvider{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to auto-migrate database: %w", err)

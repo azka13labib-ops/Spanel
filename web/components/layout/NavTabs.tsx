@@ -1,5 +1,5 @@
 import React from "react";
-import { Layers, Database, Bot, Server } from "lucide-react";
+import { Layers, Database, Globe, Bot, Server } from "lucide-react";
 import { DashboardTab } from "@/types";
 
 interface NavTabsProps {
@@ -12,6 +12,7 @@ export const NavTabs: React.FC<NavTabsProps> = ({ activeTab, onTabChange, projec
   const tabs = [
     { id: "projects" as const, label: `Projects (${projectCount})`, icon: Layers },
     { id: "marketplace" as const, label: "Marketplace", icon: Database },
+    { id: "dns" as const, label: "DNS Records", icon: Globe },
     { id: "ai" as const, label: "AI DevOps Agent", icon: Bot },
     { id: "server" as const, label: "Janitor & Host", icon: Server },
   ];

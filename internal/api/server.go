@@ -107,12 +107,23 @@ func (s *Server) setupRoutes() {
 	apiGroup.Get("/marketplace/:id/backups", s.handleListMarketplaceBackups)
 	apiGroup.Post("/marketplace/:id/restore", s.handleRestoreMarketplaceBackup)
 
+	// AI Configuration & Remediation
 	apiGroup.Get("/ai/config", s.handleGetAIConfig)
 	apiGroup.Post("/ai/config", s.handleSaveAIConfig)
 	apiGroup.Delete("/ai/config", s.handleDeleteAIConfig)
 	apiGroup.Post("/ai/test", s.handleTestAIConfig)
 	apiGroup.Get("/remediations/:id", s.handleGetRemediation)
 	apiGroup.Post("/remediations/:id/apply", s.handleApplyRemediation)
+
+	// Cloudflare DNS Management
+	apiGroup.Get("/dns/config", s.handleGetDNSConfig)
+	apiGroup.Post("/dns/config", s.handleSaveDNSConfig)
+	apiGroup.Delete("/dns/config", s.handleDeleteDNSConfig)
+	apiGroup.Get("/dns/zones", s.handleListDNSZones)
+	apiGroup.Get("/dns/zones/:zoneId/records", s.handleListDNSRecords)
+	apiGroup.Post("/dns/zones/:zoneId/records", s.handleCreateDNSRecord)
+	apiGroup.Delete("/dns/zones/:zoneId/records/:recordId", s.handleDeleteDNSRecord)
+	apiGroup.Post("/dns/zones/:zoneId/quick-point", s.handleQuickPointDNSRecord)
 
 	apiGroup.Get("/github/status", s.handleGitHubStatus)
 	apiGroup.Post("/github/connect", s.handleGitHubConnect)

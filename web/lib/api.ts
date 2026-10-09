@@ -9,6 +9,10 @@ import {
   EnvVarItem,
   BackupInfo,
   AIConfig,
+  DNSConfig,
+  CloudflareZone,
+  DNSRecordItem,
+  CreateDNSRecordInput,
 } from "@/types";
 
 export const authEvent = typeof window !== 'undefined' ? new EventTarget() : null;
@@ -444,6 +448,114 @@ export async function testAIConfig(payload: {
     const data = await res.json();
     if (res.ok) return { ok: true, message: data.message };
     return { ok: false, error: data.error || "Gagal menguji koneksi AI" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || "Koneksi gagal" };
+  }
+}
+
+export async function fetchDNSConfig(): Promise<DNSConfig | null> {
+  try {
+    const res = await apiFetch("/api/dns/config");
+    if (res.ok) return await res.json();
+  } catch {}
+  return null;
+}
+
+export async function saveDNSConfig(apiToken: string): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const res = await apiFetch("/api/dns/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_token: apiToken }),
+    });
+    const data = await res.json();
+    if (res.ok) return { ok: true, message: data.message };
+    return { ok: false, error: data.error || "Gagal menyimpan token Cloudflare" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || "Koneksi gagal" };
+  }
+}
+
+export async function deleteDNSConfig(): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const res = await apiFetch("/api/dns/config", { method: "DELETE" });
+    const data = await res.json();
+    if (res.ok) return { ok: true, message: data.message };
+    return { ok: false, error: data.error || "Gagal menghapus token Cloudflare" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || "Koneksi gagal" };
+  }
+}
+
+export async function fetchDNSZones(): Promise<CloudflareZone[]> {
+  try {
+    const res = await apiFetch("/api/dns/zones");
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+    }
+  } catch {}
+  return [];
+}
+
+export async function fetchDNSRecords(zoneId: string): Promise<DNSRecordItem[]> {
+  try {
+    const res = await apiFetch(`/api/dns/zones/${zoneId}/records`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+    }
+  } catch {}
+  return [];
+}
+
+export async function createDNSRecord(
+  zoneId: string,
+  payload: CreateDNSRecordInput
+): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/dns/zones/${zoneId}/records`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) return { ok: true, message: data.message };
+    return { ok: false, error: data.error || "Gagal menambahkan record DNS" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || "Koneksi gagal" };
+  }
+}
+
+export async function deleteDNSRecord(
+  zoneId: string,
+  recordId: string
+): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/dns/zones/${zoneId}/records/${recordId}`, {
+      method: "DELETE",
+    });
+    const data = await res.json();
+    if (res.ok) return { ok: true, message: data.message };
+    return { ok: false, error: data.error || "Gagal menghapus record DNS" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || "Koneksi gagal" };
+  }
+}
+
+export async function quickPointDNSRecord(
+  zoneId: string,
+  payload: { subdomain: string; proxied: boolean; comment?: string }
+): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/dns/zones/${zoneId}/quick-point`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) return { ok: true, message: data.message };
+    return { ok: false, error: data.error || "Gagal mengarahkan domain" };
   } catch (err) {
     return { ok: false, error: (err as Error).message || "Koneksi gagal" };
   }

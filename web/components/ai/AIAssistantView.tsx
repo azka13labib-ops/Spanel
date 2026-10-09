@@ -119,7 +119,7 @@ export const AIAssistantView: React.FC = () => {
       <div className="bg-white rounded-xl border border-gray-200/90 p-6 sm:p-7 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className="p-3 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white shadow-sm shrink-0">
+            <div className="p-3 rounded-xl bg-linear-to-tr from-indigo-600 to-violet-600 text-white shadow-sm shrink-0">
               <Bot className="h-6 w-6" />
             </div>
             <div>

@@ -49,6 +49,14 @@ type AIProvider struct {
 	APIKeyEncrypted string `gorm:"not null" json:"-"`
 }
 
+type DNSProvider struct {
+	BaseModel
+	UserID            string `gorm:"index;not null" json:"user_id"`
+	ProviderType      string `gorm:"default:'cloudflare'" json:"provider_type"`
+	APITokenEncrypted string `gorm:"not null" json:"-"`
+	AccountEmail      string `json:"account_email,omitempty"`
+}
+
 type GitHubAppInstallation struct {
 	BaseModel
 	UserID         string `gorm:"index;not null" json:"user_id"`
