@@ -43,8 +43,23 @@ export const AIAssistantView: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadConfig();
-  }, [loadConfig]);
+    let ignore = false;
+    Promise.resolve().then(async () => {
+      if (ignore) return;
+      const cfg = await fetchAIConfig();
+      if (ignore) return;
+      if (cfg) {
+        setConfig(cfg);
+        if (cfg.provider_name === "openai" || cfg.provider_name === "gemini") {
+          setProvider(cfg.provider_name);
+        }
+      }
+      setLoading(false);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

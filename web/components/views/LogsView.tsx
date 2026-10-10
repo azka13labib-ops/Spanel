@@ -177,7 +177,7 @@ export const LogsView: React.FC<LogsViewProps> = ({ projects }) => {
       </div>
 
       {/* Terminal Console Box */}
-      <div className="bg-gray-950 border border-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col h-[520px]">
+      <div className="bg-gray-950 border border-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col h-130">
         {/* Terminal Header */}
         <div className="px-4 py-2.5 bg-gray-900/90 border-b border-gray-800 flex items-center justify-between text-xs text-gray-400 font-mono">
           <div className="flex items-center gap-2">

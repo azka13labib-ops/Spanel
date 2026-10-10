@@ -439,7 +439,7 @@ export function ProjectSettingsModal({
           </form>
 
           {/* Danger Zone */}
-          <div className="pt-5 border-t border-rose-100 bg-rose-50/50 p-4 rounded-xl border border-rose-200/80 space-y-3">
+          <div className="mt-6 bg-rose-50/50 p-4 rounded-xl border border-rose-200/80 space-y-3">
             <div className="flex items-center gap-2 text-rose-700 font-bold text-xs uppercase tracking-wider">
               <ShieldAlert className="h-4 w-4" />
               <span>Danger Zone</span>

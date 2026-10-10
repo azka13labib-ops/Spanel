@@ -79,8 +79,28 @@ export const DNSManagerView: React.FC<DNSManagerViewProps> = ({ hostIp }) => {
   }, []);
 
   useEffect(() => {
-    loadConfigAndZones();
-  }, [loadConfigAndZones]);
+    let ignore = false;
+    Promise.resolve().then(async () => {
+      if (ignore) return;
+      const cfg = await fetchDNSConfig();
+      if (ignore) return;
+      setConfig(cfg);
+      setLoadingConfig(false);
+
+      if (cfg?.is_configured) {
+        const zList = await fetchDNSZones();
+        if (ignore) return;
+        setZones(zList);
+        if (zList.length > 0) {
+          setSelectedZone(zList[0]);
+        }
+      }
+    });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   // Load records whenever selectedZone changes
   const loadRecords = useCallback(async (zoneId: string) => {
@@ -91,12 +111,28 @@ export const DNSManagerView: React.FC<DNSManagerViewProps> = ({ hostIp }) => {
   }, []);
 
   useEffect(() => {
-    if (selectedZone) {
-      loadRecords(selectedZone.id);
-    } else {
-      setRecords([]);
+    let ignore = false;
+    if (!selectedZone) {
+      Promise.resolve().then(() => {
+        if (!ignore) setRecords([]);
+      });
+      return;
     }
-  }, [selectedZone, loadRecords]);
+
+    Promise.resolve().then(async () => {
+      if (ignore) return;
+      setLoadingRecords(true);
+      const recs = await fetchDNSRecords(selectedZone.id);
+      if (!ignore) {
+        setRecords(recs);
+        setLoadingRecords(false);
+      }
+    });
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedZone]);
 
   // Update default value when record type changes
   const handleTypeChange = (newType: string) => {

@@ -123,7 +123,7 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
 
                       {/* Image */}
                       <td className="px-4 py-4 font-mono text-[11px] text-gray-600">
-                        <span className="bg-gray-50 px-2 py-0.5 rounded border border-gray-200/70 truncate max-w-[160px] inline-block">
+                        <span className="bg-gray-50 px-2 py-0.5 rounded border border-gray-200/70 truncate max-w-40 inline-block">
                           spanel/{project.name}:latest
                         </span>
                       </td>

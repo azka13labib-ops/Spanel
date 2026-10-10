@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   GitCommit,
   GitBranch,
-  Clock,
   FileText,
   Play,
   RotateCcw,
@@ -163,7 +162,7 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
                       {/* Application */}
                       <td className="px-5 py-4">
                         <div className="font-semibold text-gray-900">{dep.project.name}</div>
-                        <div className="text-[10px] text-gray-400 font-mono truncate max-w-[140px]">
+                        <div className="text-[10px] text-gray-400 font-mono truncate max-w-35">
                           {dep.project.repo_fullname}
                         </div>
                       </td>
@@ -175,7 +174,7 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
                             <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px] text-gray-600">
                               {dep.commitHash.slice(0, 7)}
                             </span>
-                            <span className="truncate max-w-[180px] text-gray-600">
+                            <span className="truncate max-w-45 text-gray-600">
                               {dep.commitMessage || "Update application"}
                             </span>
                           </div>
@@ -223,6 +222,13 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
                             title="Re-run deployment"
                           >
                             <Play className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => onRollback(dep.project)}
+                            className="p-1 rounded-md hover:bg-gray-100 text-gray-500 hover:text-amber-600 transition cursor-pointer"
+                            title="Rollback deployment"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>

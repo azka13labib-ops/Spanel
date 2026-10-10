@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   Layers,
   Plus,
-  Search,
   LayoutGrid,
   List,
   Play,
@@ -13,9 +12,7 @@ import {
   Key,
   Globe,
   ExternalLink,
-  Trash2,
   MoreVertical,
-  Activity,
   Square,
 } from "lucide-react";
 import { Project } from "@/types";
@@ -223,7 +220,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                             className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-mono text-[11px] hover:underline"
                           >
                             <Globe className="w-3 h-3 text-gray-400" />
-                            <span className="truncate max-w-[160px]">{activeDomain}</span>
+                            <span className="truncate max-w-40">{activeDomain}</span>
                             <ExternalLink className="w-2.5 h-2.5 opacity-60" />
                           </a>
                         ) : (
@@ -380,7 +377,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                         <h3 className="font-bold text-sm text-gray-900 leading-tight">
                           {project.name}
                         </h3>
-                        <p className="text-[11px] text-gray-400 font-mono truncate max-w-[180px]">
+                        <p className="text-[11px] text-gray-400 font-mono truncate max-w-45">
                           {project.repo_fullname}
                         </p>
                       </div>
