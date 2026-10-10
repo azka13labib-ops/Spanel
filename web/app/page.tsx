@@ -13,6 +13,7 @@ import {
   projectAction,
   authEvent,
   getWebSocketUrl,
+  logout,
 } from "@/lib/api";
 
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -300,8 +301,9 @@ export default function Dashboard() {
           versionInfo={versionInfo}
           onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
           onLogout={() => {
-            localStorage.removeItem("spanel_token");
-            setIsAuthenticated(false);
+            logout().finally(() => {
+              setIsAuthenticated(false);
+            });
           }}
         />
 

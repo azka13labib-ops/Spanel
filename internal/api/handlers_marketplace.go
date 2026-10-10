@@ -11,7 +11,7 @@ import (
 )
 
 type InstallMarketplaceInput struct {
-	ServiceName string `json:"service_name"` // "postgresql", "mysql", "redis", "sqlite"
+	ServiceName string `json:"service_name"`
 }
 
 type MarketplaceServiceResponse struct {

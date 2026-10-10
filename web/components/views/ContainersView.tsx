@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Server,
   Play,
@@ -7,8 +7,10 @@ import {
   Terminal,
   FileText,
   Search,
+  RefreshCw,
 } from "lucide-react";
-import { Project } from "@/types";
+import { Project, ContainerItem } from "@/types";
+import { fetchContainers } from "@/lib/api";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog";
 
 interface ContainersViewProps {
@@ -25,34 +27,102 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
   onViewLogs,
 }) => {
   const [search, setSearch] = useState("");
+  const [containers, setContainers] = useState<ContainerItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [confirmTarget, setConfirmTarget] = useState<{
     project: Project;
     action: "stop" | "restart";
   } | null>(null);
 
-  const filtered = projects.filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.repo_fullname.toLowerCase().includes(search.toLowerCase())
+  const loadContainers = useCallback(async () => {
+    setLoading(true);
+    const data = await fetchContainers();
+    setContainers(data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchContainers().then((data) => {
+      if (active) {
+        setContainers(data);
+        setLoading(false);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Combine real containers with project fallback if docker daemon returned empty or is starting
+  const displayContainers: ContainerItem[] = containers.length > 0
+    ? containers
+    : projects.map((p) => ({
+        id: p.id.slice(0, 12),
+        name: `spanel-app-${p.name}`,
+        project_id: p.id,
+        project_name: p.name,
+        image: `spanel/${p.name}:latest`,
+        state: p.status === "running" ? "running" : "exited",
+        status: p.status === "running" ? "Running" : "Stopped",
+        ports: `0.0.0.0:${p.target_port || 3000}`,
+        is_spanel_managed: true,
+      }));
+
+  const filtered = displayContainers.filter(
+    (c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.image.toLowerCase().includes(search.toLowerCase()) ||
+      (c.project_name && c.project_name.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const handleExecuteAction = () => {
+  const handleExecuteAction = async () => {
     if (confirmTarget) {
       onContainerAction(confirmTarget.project, confirmTarget.action);
       setConfirmTarget(null);
+      setTimeout(() => {
+        loadContainers();
+      }, 1000);
     }
+  };
+
+  const findProjectForContainer = (c: ContainerItem): Project | undefined => {
+    if (c.project_id) {
+      const found = projects.find((p) => p.id === c.project_id);
+      if (found) return found;
+    }
+    if (c.project_name) {
+      const found = projects.find((p) => p.name === c.project_name);
+      if (found) return found;
+    }
+    if (c.name.startsWith("spanel-app-")) {
+      const pName = c.name.replace("spanel-app-", "");
+      return projects.find((p) => p.name === pName);
+    }
+    return undefined;
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-          Containers
-        </h1>
-        <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
-          Inspect and control Docker container instances, ports, and logs running on this VPS.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+            Containers
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
+            Real Docker container instances, runtime statuses, and port mappings running on this host.
+          </p>
+        </div>
+        <button
+          onClick={loadContainers}
+          disabled={loading}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition cursor-pointer disabled:opacity-50"
+          aria-label="Refresh containers"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          <span>Refresh</span>
+        </button>
       </div>
 
       {/* Search Input */}
@@ -63,8 +133,8 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search container by name or repository..."
-            aria-label="Search container by name or repository"
+            placeholder="Search container by name, image, or app..."
+            aria-label="Search container by name, image, or app"
             className="w-full pl-9 pr-3 py-1.5 bg-gray-50/80 focus:bg-white border border-gray-200 rounded-lg text-xs text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-sans"
           />
         </div>
@@ -92,19 +162,18 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
                   <th className="px-5 py-3">Container Name</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Image</th>
-                  <th className="px-4 py-3">Host Port</th>
-                  <th className="px-4 py-3">CPU</th>
-                  <th className="px-4 py-3">Memory</th>
+                  <th className="px-4 py-3">Ports</th>
+                  <th className="px-4 py-3">Type</th>
                   <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-gray-800">
-                {filtered.map((project) => {
-                  const isRunning = project.status === "running";
-                  const containerName = `spanel-app-${project.name}`;
+                {filtered.map((container) => {
+                  const isRunning = container.state === "running";
+                  const linkedProject = findProjectForContainer(container);
 
                   return (
-                    <tr key={project.id} className="hover:bg-gray-50/70 transition">
+                    <tr key={container.id} className="hover:bg-gray-50/70 transition">
                       {/* Container Name */}
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2.5">
@@ -113,10 +182,11 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
                           </div>
                           <div>
                             <span className="font-mono font-semibold text-gray-900 block">
-                              {containerName}
+                              {container.name}
                             </span>
-                            <span className="text-[10px] text-gray-500 block">
-                              App: {project.name}
+                            <span className="text-[10px] text-gray-500 block font-mono">
+                              ID: {container.id.slice(0, 12)}
+                              {container.project_name && ` • App: ${container.project_name}`}
                             </span>
                           </div>
                         </div>
@@ -127,100 +197,102 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
                         {isRunning ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>Running (active)</span>
+                            <span>{container.status || "Running"}</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                            <span>Stopped (exited)</span>
+                            <span>{container.status || "Stopped"}</span>
                           </span>
                         )}
                       </td>
 
                       {/* Image */}
                       <td className="px-4 py-4 font-mono text-[11px] text-gray-600">
-                        <span className="bg-gray-50 px-2 py-0.5 rounded border border-gray-200/70 truncate max-w-40 inline-block">
-                          spanel/{project.name}:latest
+                        <span className="bg-gray-50 px-2 py-0.5 rounded border border-gray-200/70 truncate max-w-48 inline-block" title={container.image}>
+                          {container.image}
                         </span>
                       </td>
 
-                      {/* Host Port */}
+                      {/* Ports */}
                       <td className="px-4 py-4 font-mono text-[11px] text-gray-700">
-                        0.0.0.0:{project.target_port || 3000}
+                        {container.ports || "-"}
                       </td>
 
-                      {/* CPU - truthful indicator */}
-                      <td className="px-4 py-4 font-mono text-[11px] text-gray-600">
-                        {isRunning ? (
-                          <span title="Per-container streaming telemetry idle" className="text-gray-500">
-                            -
+                      {/* Container Type */}
+                      <td className="px-4 py-4 text-[11px] text-gray-600">
+                        {container.is_database ? (
+                          <span className="px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-medium">
+                            Database
+                          </span>
+                        ) : container.is_spanel_managed ? (
+                          <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-medium">
+                            Application
                           </span>
                         ) : (
-                          <span className="text-gray-400">0.0%</span>
-                        )}
-                      </td>
-
-                      {/* Memory - truthful indicator */}
-                      <td className="px-4 py-4 font-mono text-[11px] text-gray-600">
-                        {isRunning ? (
-                          <span title="Per-container streaming telemetry idle" className="text-gray-500">
-                            -
+                          <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 text-[10px] font-medium">
+                            Host Service
                           </span>
-                        ) : (
-                          <span className="text-gray-400">0 MB</span>
                         )}
                       </td>
 
                       {/* Actions */}
                       <td className="px-5 py-4 text-right">
-                        <div className="inline-flex items-center gap-1">
-                          {isRunning ? (
+                        {linkedProject ? (
+                          <div className="inline-flex items-center gap-1">
+                            {isRunning ? (
+                              <button
+                                onClick={() => setConfirmTarget({ project: linkedProject, action: "stop" })}
+                                className="p-1.5 rounded-lg hover:bg-rose-50 text-amber-700 hover:text-rose-700 transition focus-visible:ring-2 focus-visible:ring-rose-500 outline-none cursor-pointer"
+                                title="Stop container"
+                                aria-label={`Stop container for ${linkedProject.name}`}
+                              >
+                                <Square className="w-3.5 h-3.5" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  onContainerAction(linkedProject, "start");
+                                  setTimeout(loadContainers, 1000);
+                                }}
+                                className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none cursor-pointer"
+                                title="Start container"
+                                aria-label={`Start container for ${linkedProject.name}`}
+                              >
+                                <Play className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
                             <button
-                              onClick={() => setConfirmTarget({ project, action: "stop" })}
-                              className="p-1.5 rounded-lg hover:bg-rose-50 text-amber-700 hover:text-rose-700 transition focus-visible:ring-2 focus-visible:ring-rose-500 outline-none cursor-pointer"
-                              title="Stop container"
-                              aria-label={`Stop container for ${project.name}`}
+                              onClick={() => setConfirmTarget({ project: linkedProject, action: "restart" })}
+                              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
+                              title="Restart container"
+                              aria-label={`Restart container for ${linkedProject.name}`}
                             >
-                              <Square className="w-3.5 h-3.5" />
+                              <RotateCcw className="w-3.5 h-3.5" />
                             </button>
-                          ) : (
+
                             <button
-                              onClick={() => onContainerAction(project, "start")}
-                              className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none cursor-pointer"
-                              title="Start container"
-                              aria-label={`Start container for ${project.name}`}
+                              onClick={() => onOpenTerminal(linkedProject)}
+                              className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
+                              title="Open shell terminal"
+                              aria-label={`Open terminal for ${linkedProject.name}`}
                             >
-                              <Play className="w-3.5 h-3.5" />
+                              <Terminal className="w-3.5 h-3.5" />
                             </button>
-                          )}
 
-                          <button
-                            onClick={() => setConfirmTarget({ project, action: "restart" })}
-                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
-                            title="Restart container"
-                            aria-label={`Restart container for ${project.name}`}
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            onClick={() => onOpenTerminal(project)}
-                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
-                            title="Open shell terminal"
-                            aria-label={`Open terminal for ${project.name}`}
-                          >
-                            <Terminal className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            onClick={() => onViewLogs(project)}
-                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
-                            title="View container logs"
-                            aria-label={`View logs for ${project.name}`}
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                            <button
+                              onClick={() => onViewLogs(linkedProject)}
+                              className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
+                              title="View container logs"
+                              aria-label={`View logs for ${linkedProject.name}`}
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 font-mono">External</span>
+                        )}
                       </td>
                     </tr>
                   );

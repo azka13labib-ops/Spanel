@@ -72,9 +72,13 @@ func (s *Server) setupRoutes() {
 	// API Group
 	apiGroup := s.app.Group("/api", s.requireAuth())
 
-	// System Health & Info & Setup
+	// System Health & Info & Setup & Auth
 	apiGroup.Get("/health", s.handleHealth)
 	apiGroup.Post("/setup", s.handleSetup)
+	apiGroup.Post("/auth/login", s.handleLogin)
+	apiGroup.Post("/auth/logout", s.handleLogout)
+	apiGroup.Get("/auth/me", s.handleGetMe)
+	apiGroup.Get("/containers", s.handleListContainers)
 	apiGroup.Get("/system/metrics", s.handleSystemMetrics)
 	apiGroup.Get("/system/version", s.handleGetVersion)
 	apiGroup.Post("/system/check-update", s.handleCheckUpdate)

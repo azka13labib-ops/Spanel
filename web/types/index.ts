@@ -16,14 +16,18 @@ export interface ContainerItem {
   id: string;
   name: string;
   project_id?: string;
+  project_name?: string;
   image: string;
-  status: "running" | "exited" | "paused" | "restarting" | "dead";
+  state?: string;
+  status: string;
   created_at?: string;
-  port: number;
+  port?: number | string;
+  ports?: string;
   cpu_percent?: number;
   memory_mb?: number;
   uptime?: string;
   is_database?: boolean;
+  is_spanel_managed?: boolean;
 }
 
 export interface Project {

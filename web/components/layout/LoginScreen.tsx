@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { login } from '@/lib/api';
 
 export function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [token, setToken] = useState('');
@@ -25,7 +26,10 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
         });
 
         if (setupRes.ok) {
-          localStorage.setItem('spanel_token', token);
+          const data = await setupRes.json().catch(() => ({}));
+          if (data.token) {
+            localStorage.setItem('spanel_token', data.token);
+          }
           onLogin();
           return;
         } else {
@@ -36,29 +40,16 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
         }
       }
 
-      await fetch('/api/health', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      // Test the token against a protected endpoint to verify it
-      const checkRes = await fetch('/api/system/metrics', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (checkRes.ok) {
-        localStorage.setItem('spanel_token', token);
+      const res = await login(token);
+      if (res.ok) {
         onLogin();
       } else {
-        const data = await checkRes.json().catch(() => ({}));
-        if (data?.error === "SETUP_REQUIRED") {
-            setIsSetupMode(true);
-            setToken('');
-            setError('');
+        if (res.error === "SETUP_REQUIRED") {
+          setIsSetupMode(true);
+          setToken('');
+          setError('');
         } else {
-            setError("Token Admin tidak valid. Silakan coba lagi.");
+          setError(res.error || "Password Admin salah. Silakan coba lagi.");
         }
       }
     } catch {

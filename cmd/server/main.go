@@ -35,6 +35,7 @@ func main() {
 	deploySvc := service.NewDeployService(database, aiAgent, cfg)
 
 	q.RegisterHandler("deploy", deploySvc.HandleDeploy)
+	q.RegisterHandler("rollback", deploySvc.HandleRollback)
 
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	defer workerCancel()

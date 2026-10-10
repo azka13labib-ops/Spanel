@@ -14,6 +14,7 @@ import {
   DNSRecordItem,
   CreateDNSRecordInput,
   VersionInfo,
+  ContainerItem,
 } from "@/types";
 
 export const authEvent = typeof window !== 'undefined' ? new EventTarget() : null;
@@ -43,6 +44,52 @@ async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<R
     authEvent?.dispatchEvent(new Event("unauthorized"));
   }
   return res;
+}
+
+export async function login(password: string): Promise<{ ok: boolean; token?: string; error?: string }> {
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (typeof window !== "undefined" && data.token) {
+        localStorage.setItem("spanel_token", data.token);
+      }
+      return { ok: true, token: data.token };
+    }
+    return { ok: false, error: data.error || "Gagal login" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || "Koneksi gagal" };
+  }
+}
+
+export async function logout(): Promise<boolean> {
+  try {
+    const res = await apiFetch("/api/auth/logout", { method: "POST" });
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("spanel_token");
+    }
+    return res.ok;
+  } catch {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("spanel_token");
+    }
+    return true;
+  }
+}
+
+export async function fetchContainers(): Promise<ContainerItem[]> {
+  try {
+    const res = await apiFetch("/api/containers");
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) return data;
+    }
+  } catch {}
+  return [];
 }
 
 export async function fetchSystemMetrics(): Promise<SystemMetrics | null> {

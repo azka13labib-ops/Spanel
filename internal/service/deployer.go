@@ -206,10 +206,8 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	}
 	writeLog("✓ Repository cloned successfully!")
 
-	// Remove .git directory after clone so PAT doesn't get baked into the Docker image
 	_ = os.RemoveAll(gitDir)
 
-	// 2. Check Docker Engine Availability
 	writeLog("Checking Docker Engine daemon...")
 	checkDocker := exec.CommandContext(ctx, "docker", "info")
 	if err := checkDocker.Run(); err != nil {
@@ -222,10 +220,8 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	}
 	writeLog("✓ Docker Engine active!")
 
-	// 3. Ensure Traefik Reverse Proxy is running on Port 80
 	EnsureTraefikRunning(ctx, writeLog)
 
-	// 4. Build with Nixpacks Ephemeral Container
 	imageTag := fmt.Sprintf("spanel-%s:%s", project.Name, deployment.ID[:8])
 	buildOpts := &builder.BuildOptions{
 		DeploymentID: deployment.ID,
@@ -237,7 +233,6 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 		LogWriter:    logFile,
 	}
 
-	// Fetch and decrypt project env vars
 	var envs []db.EnvironmentVariable
 	s.db.Where("project_id = ?", project.ID).Find(&envs)
 	envMap := make(map[string]string)
@@ -270,7 +265,6 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 			knownSecrets = append(knownSecrets, v)
 		}
 
-		// Smart Context Extractor & AI Diagnosis
 		logCtx, extErr := ai.ExtractLogContext(buildRes.LogPath, knownSecrets)
 		if extErr == nil && deployment.RetryCount < 3 {
 			aiKey := os.Getenv("SPANEL_AI_API_KEY")
@@ -279,7 +273,6 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 				aiProvider = "gemini"
 			}
 
-			// Check database for saved AI provider key
 			var savedProv db.AIProvider
 			if err := s.db.First(&savedProv, "user_id = ?", "default-admin").Error; err == nil && savedProv.APIKeyEncrypted != "" {
 				if decKey, decErr := crypto.Decrypt(savedProv.APIKeyEncrypted, s.cfg.MasterKey, "ai:default-admin"); decErr == nil && decKey != "" {
@@ -436,5 +429,163 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	writeLog("👉 Magic Domain: http://%s", project.MagicDomain)
 	writeLog("👉 Direct Port: http://localhost:%d", project.TargetPort)
 
+	return nil
+}
+
+func (s *DeployService) HandleRollback(ctx context.Context, job *db.InternalQueueJob) error {
+	var deployment db.Deployment
+	if err := s.db.First(&deployment, "id = ?", job.TargetID).Error; err != nil {
+		return fmt.Errorf("rollback deployment %s not found: %w", job.TargetID, err)
+	}
+
+	var project db.Project
+	if err := s.db.First(&project, "id = ?", deployment.ProjectID).Error; err != nil {
+		deployment.Status = "failed"
+		s.db.Save(&deployment)
+		return fmt.Errorf("project %s not found: %w", deployment.ProjectID, err)
+	}
+
+	mu := getProjectMutex(project.ID)
+	mu.Lock()
+	defer mu.Unlock()
+
+	s.db.Model(&deployment).Update("status", "building")
+
+	logsDir := filepath.Join(".", "data", "logs")
+	_ = os.MkdirAll(logsDir, 0755)
+	logFilePath := filepath.Join(logsDir, fmt.Sprintf("%s.log", deployment.ID))
+	logFile, _ := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if logFile != nil {
+		defer logFile.Close()
+	}
+
+	writeLog := func(format string, a ...interface{}) {
+		msg := fmt.Sprintf(format, a...)
+		if !strings.HasSuffix(msg, "\n") {
+			msg += "\n"
+		}
+		if logFile != nil {
+			_, _ = logFile.WriteString(msg)
+		}
+		log.Print(msg)
+	}
+
+	writeLog("=== [sPanel Engine Rollback Triggered] ===")
+	writeLog("Project: %s | Target Image: %s", project.Name, deployment.ImageHash)
+
+	if deployment.ImageHash == "" {
+		writeLog("❌ Rollback failed: no valid target Docker image hash specified.")
+		deployment.Status = "failed"
+		s.db.Save(&deployment)
+		return fmt.Errorf("target image hash is empty for rollback deployment %s", deployment.ID)
+	}
+
+	writeLog("Verifying Docker image availability: %s ...", deployment.ImageHash)
+	checkImg := exec.CommandContext(ctx, "docker", "image", "inspect", deployment.ImageHash)
+	if err := checkImg.Run(); err != nil {
+		writeLog("❌ Rollback failed: target image '%s' no longer exists in local Docker cache (may have been pruned).", deployment.ImageHash)
+		deployment.Status = "failed"
+		s.db.Save(&deployment)
+		return fmt.Errorf("docker image %s does not exist on host: %w", deployment.ImageHash, err)
+	}
+	writeLog("✓ Docker image verified!")
+
+	var envs []db.EnvironmentVariable
+	s.db.Where("project_id = ?", project.ID).Find(&envs)
+	envMap := make(map[string]string)
+	for _, e := range envs {
+		val, err := crypto.Decrypt(e.ValueEncrypted, s.cfg.MasterKey, "env:"+e.ProjectID+":"+e.Key)
+		if err == nil {
+			envMap[e.Key] = val
+		}
+	}
+
+	hostPort := project.TargetPort
+	if hostPort <= 0 {
+		hostPort = 3000
+	}
+	containerPort := 3000
+	if pStr, ok := envMap["PORT"]; ok {
+		if pVal, err := strconv.Atoi(pStr); err == nil && pVal > 0 {
+			containerPort = pVal
+		}
+	}
+
+	containerName := fmt.Sprintf("spanel-app-%s", project.Name)
+	writeLog("Stopping current container %s and switching to rollback image...", containerName)
+	_ = exec.CommandContext(ctx, "docker", "rm", "-f", containerName).Run()
+	_ = exec.CommandContext(ctx, "docker", "network", "create", "spanel-net").Run()
+
+	spaDir := "dist"
+	if customSpa, ok := envMap["NIXPACKS_SPA_OUTPUT_DIR"]; ok {
+		spaDir = customSpa
+	}
+
+	runArgs := []string{
+		"run", "-d",
+		"--name", containerName,
+		"--network", "spanel-net",
+		"--restart", "unless-stopped",
+		"--memory", fmt.Sprintf("%dm", project.MemoryLimitMB),
+		"--memory-swap", fmt.Sprintf("%dm", project.MemoryLimitMB),
+		"--cpus", fmt.Sprintf("%.2f", project.CPULimit),
+		"--pids-limit", "512",
+		"--security-opt", "no-new-privileges",
+		"--cap-drop", "ALL",
+		"--cap-add", "NET_BIND_SERVICE",
+		"-e", fmt.Sprintf("PORT=%d", containerPort),
+		"-e", fmt.Sprintf("NIXPACKS_SPA_OUTPUT_DIR=%s", spaDir),
+		"-p", fmt.Sprintf("%d:%d", hostPort, containerPort),
+		"--label", "traefik.enable=true",
+		"--label", "traefik.docker.network=spanel-net",
+	}
+
+	traefikRule := fmt.Sprintf("Host(`%s`)", project.MagicDomain)
+	if project.CustomDomain != "" {
+		traefikRule = fmt.Sprintf("Host(`%s`) || %s", project.CustomDomain, traefikRule)
+	}
+	runArgs = append(runArgs,
+		"--label", fmt.Sprintf("traefik.http.routers.%s.rule=%s", project.Name, traefikRule),
+		"--label", fmt.Sprintf("traefik.http.routers.%s.tls.certresolver=letsencrypt", project.Name),
+		"--label", fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port=%d", project.Name, containerPort),
+	)
+
+	envFile, err := os.CreateTemp("", "spanel-env-rollback-*")
+	if err == nil {
+		_ = envFile.Chmod(0600)
+		for k, v := range envMap {
+			if !strings.Contains(k, "\n") && !strings.Contains(v, "\n") {
+				fmt.Fprintf(envFile, "%s=%s\n", k, v)
+			}
+		}
+		envFile.Close()
+		defer os.Remove(envFile.Name())
+		runArgs = append(runArgs, "--env-file", envFile.Name())
+	}
+
+	var volumes []db.Volume
+	s.db.Where("project_id = ?", project.ID).Find(&volumes)
+	for _, vol := range volumes {
+		runArgs = append(runArgs, "-v", fmt.Sprintf("%s:%s", vol.HostPath, vol.ContainerPath))
+	}
+
+	runArgs = append(runArgs, deployment.ImageHash)
+
+	runCmd := exec.CommandContext(ctx, "docker", runArgs...)
+	if runOut, runErr := runCmd.CombinedOutput(); runErr != nil {
+		writeLog("❌ Failed to launch rollback container: %v\nOutput: %s", runErr, string(runOut))
+		deployment.Status = "failed"
+		s.db.Save(&deployment)
+		return runErr
+	}
+
+	now := time.Now()
+	deployment.FinishedAt = &now
+	deployment.Status = "healthy"
+	s.db.Save(&deployment)
+	s.db.Model(&project).Update("status", "running")
+
+	writeLog("\n🎉 ROLLBACK SUCCEEDED AND LIVE!")
+	writeLog("👉 Restored container running image: %s", deployment.ImageHash)
 	return nil
 }

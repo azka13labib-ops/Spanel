@@ -13,7 +13,6 @@ import (
 var DB *gorm.DB
 
 func Init(dbPath string) (*gorm.DB, error) {
-	// Open SQLite with pure-Go driver
 	dsn := fmt.Sprintf("%s?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)&_txlock=immediate", dbPath)
 
 	gormConfig := &gorm.Config{
@@ -30,12 +29,10 @@ func Init(dbPath string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to get generic database object: %w", err)
 	}
 
-	// Optimize connection pooling for SQLite WAL mode:
-	// WAL allows multiple readers and 1 writer concurrently without lockups.
+
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetConnMaxLifetime(0)
 
-	// Execute PRAGMAs explicitly just to be certain
 	pragmas := []string{
 		"PRAGMA journal_mode = WAL;",
 		"PRAGMA busy_timeout = 10000;",
@@ -48,7 +45,6 @@ func Init(dbPath string) (*gorm.DB, error) {
 		}
 	}
 
-	// Auto-migrate tables
 	err = database.AutoMigrate(
 		&User{},
 		&AIProvider{},
@@ -62,12 +58,12 @@ func Init(dbPath string) (*gorm.DB, error) {
 		&AIRemediation{},
 		&MarketplaceService{},
 		&DNSProvider{},
+		&Session{},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to auto-migrate database: %w", err)
 	}
 
-	// Seed default-admin user for single-tenant mode
 	var defaultUser User
 	if err := database.First(&defaultUser, "id = ?", "default-admin").Error; err != nil {
 		database.Create(&User{

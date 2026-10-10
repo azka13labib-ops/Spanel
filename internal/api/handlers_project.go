@@ -478,16 +478,43 @@ func (s *Server) handleUpdateProject(c *fiber.Ctx) error {
 	return c.JSON(project)
 }
 
+func getContainerState(containerName string) string {
+	cmd := exec.Command("docker", "inspect", "--format", "{{.State.Status}}", containerName)
+	out, err := cmd.Output()
+	if err != nil {
+		return "stopped"
+	}
+	status := strings.TrimSpace(string(out))
+	if status == "" {
+		return "stopped"
+	}
+	return status
+}
+
 func (s *Server) handleStartProject(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var project db.Project
 	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
 	}
-	if err := exec.Command("docker", "start", "spanel-app-"+project.Name).Run(); err != nil {
+	containerName := "spanel-app-" + project.Name
+	if err := exec.Command("docker", "start", containerName).Run(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to start container: " + err.Error()})
 	}
-	return c.JSON(fiber.Map{"message": "Started successfully"})
+
+	state := getContainerState(containerName)
+	if state == "running" {
+		s.db.Model(&project).Update("status", "running")
+		project.Status = "running"
+	} else {
+		s.db.Model(&project).Update("status", state)
+		project.Status = state
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Started successfully",
+		"status":  project.Status,
+	})
 }
 
 func (s *Server) handleStopProject(c *fiber.Ctx) error {
@@ -496,10 +523,18 @@ func (s *Server) handleStopProject(c *fiber.Ctx) error {
 	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
 	}
-	if err := exec.Command("docker", "stop", "spanel-app-"+project.Name).Run(); err != nil {
+	containerName := "spanel-app-" + project.Name
+	if err := exec.Command("docker", "stop", containerName).Run(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to stop container: " + err.Error()})
 	}
-	return c.JSON(fiber.Map{"message": "Stopped successfully"})
+
+	s.db.Model(&project).Update("status", "stopped")
+	project.Status = "stopped"
+
+	return c.JSON(fiber.Map{
+		"message": "Stopped successfully",
+		"status":  "stopped",
+	})
 }
 
 func (s *Server) handleRestartProject(c *fiber.Ctx) error {
@@ -508,10 +543,25 @@ func (s *Server) handleRestartProject(c *fiber.Ctx) error {
 	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
 	}
-	if err := exec.Command("docker", "restart", "spanel-app-"+project.Name).Run(); err != nil {
+	containerName := "spanel-app-" + project.Name
+	if err := exec.Command("docker", "restart", containerName).Run(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to restart container: " + err.Error()})
 	}
-	return c.JSON(fiber.Map{"message": "Restarted successfully"})
+
+	state := getContainerState(containerName)
+	if state == "running" {
+		s.db.Model(&project).Update("status", "running")
+		project.Status = "running"
+	} else {
+		s.db.Model(&project).Update("status", state)
+		project.Status = state
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Restarted successfully",
+		"status":  project.Status,
+	})
 }
+
 
 
