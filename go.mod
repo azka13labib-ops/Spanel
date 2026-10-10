@@ -16,6 +16,7 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
+	github.com/creack/pty v1.1.24 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fasthttp/websocket v1.5.3 // indirect
 	github.com/glebarez/go-sqlite v1.21.2 // indirect

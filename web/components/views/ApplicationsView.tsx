@@ -16,6 +16,7 @@ import {
   Square,
 } from "lucide-react";
 import { Project } from "@/types";
+import { ApplicationDetailView } from "@/components/views/ApplicationDetailView";
 
 interface ApplicationsViewProps {
   projects: Project[];
@@ -45,6 +46,37 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<"all" | "running" | "stopped" | "building">("all");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [activeMenuProject, setActiveMenuProject] = useState<string | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedTab, setSelectedTab] = useState<"overview" | "deployments" | "logs" | "console" | "environment">(
+    "console"
+  );
+
+  const handleOpenConsole = (project: Project) => {
+    setSelectedProject(project);
+    setSelectedTab("console");
+  };
+
+  const handleOpenOverview = (project: Project) => {
+    setSelectedProject(project);
+    setSelectedTab("overview");
+  };
+
+  if (selectedProject) {
+    return (
+      <ApplicationDetailView
+        project={selectedProject}
+        onBack={() => setSelectedProject(null)}
+        onDeploy={onDeploy}
+        onRollback={onRollback}
+        onViewLogs={onViewLogs}
+        onOpenEnvVars={onOpenEnvVars}
+        onOpenSettings={onOpenSettings}
+        onContainerAction={onContainerAction}
+        onOpenTerminal={onOpenTerminal}
+        defaultTab={selectedTab}
+      />
+    );
+  }
 
   const filteredProjects = projects.filter((p) => {
     const matchesSearch =
@@ -175,12 +207,16 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                     <tr key={project.id} className="hover:bg-gray-50/70 transition">
                       {/* Application Info */}
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+                        <div
+                          className="flex items-center gap-3 cursor-pointer group"
+                          onClick={() => handleOpenOverview(project)}
+                          title="View application details"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition">
                             {project.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <span className="font-semibold text-gray-900 block truncate">
+                            <span className="font-semibold text-gray-900 group-hover:text-indigo-600 block truncate transition">
                               {project.name}
                             </span>
                             <span className="text-[10px] text-gray-400 font-mono block truncate">
@@ -261,9 +297,9 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                             <FileText className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => onOpenTerminal(project)}
+                            onClick={() => handleOpenConsole(project)}
                             className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition cursor-pointer"
-                            title="Terminal"
+                            title="Terminal Console"
                           >
                             <Terminal className="w-3.5 h-3.5" />
                           </button>
@@ -369,12 +405,16 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
+                    <div
+                      className="flex items-center gap-3 cursor-pointer group"
+                      onClick={() => handleOpenOverview(project)}
+                      title="View application details"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm group-hover:bg-indigo-600 group-hover:text-white transition">
                         {project.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h3 className="font-bold text-sm text-gray-900 leading-tight">
+                        <h3 className="font-bold text-sm text-gray-900 group-hover:text-indigo-600 transition leading-tight">
                           {project.name}
                         </h3>
                         <p className="text-[11px] text-gray-400 font-mono truncate max-w-45">
@@ -431,9 +471,9 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                       <FileText className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => onOpenTerminal(project)}
+                      onClick={() => handleOpenConsole(project)}
                       className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition cursor-pointer"
-                      title="Terminal"
+                      title="Terminal Console"
                     >
                       <Terminal className="w-3.5 h-3.5" />
                     </button>
