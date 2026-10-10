@@ -16,7 +16,9 @@ import {
   Square,
 } from "lucide-react";
 import { Project } from "@/types";
+import { formatTimeAgo } from "@/lib/utils";
 import { ApplicationDetailView } from "@/components/views/ApplicationDetailView";
+import { ConfirmDialog } from "@/components/modals/ConfirmDialog";
 
 interface ApplicationsViewProps {
   projects: Project[];
@@ -50,6 +52,10 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
   const [selectedTab, setSelectedTab] = useState<"overview" | "deployments" | "logs" | "console" | "environment">(
     "console"
   );
+  const [confirmTarget, setConfirmTarget] = useState<{
+    project: Project;
+    action: "stop" | "restart" | "rollback";
+  } | null>(null);
 
   const handleOpenConsole = (project: Project) => {
     setSelectedProject(project);
@@ -59,6 +65,16 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
   const handleOpenOverview = (project: Project) => {
     setSelectedProject(project);
     setSelectedTab("overview");
+  };
+
+  const handleExecuteConfirm = () => {
+    if (!confirmTarget) return;
+    if (confirmTarget.action === "rollback") {
+      onRollback(confirmTarget.project);
+    } else {
+      onContainerAction(confirmTarget.project, confirmTarget.action);
+    }
+    setConfirmTarget(null);
   };
 
   if (selectedProject) {
@@ -98,14 +114,14 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Applications</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+          <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
             Manage your deployed cloud applications, domains, and containers.
           </p>
         </div>
 
         <button
           onClick={onOpenNewProject}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition shadow-xs cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition shadow-xs cursor-pointer self-start sm:self-auto focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
         >
           <Plus className="w-4 h-4" />
           <span>New Application</span>
@@ -127,7 +143,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
             <button
               key={filter.id}
               onClick={() => setStatusFilter(filter.id)}
-              className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
                 statusFilter === filter.id
                   ? "bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200"
                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
@@ -142,19 +158,21 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
         <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg self-end sm:self-auto text-gray-600">
           <button
             onClick={() => setViewMode("table")}
-            className={`p-1.5 rounded-md transition cursor-pointer ${
+            className={`p-1.5 rounded-md transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
               viewMode === "table" ? "bg-white text-gray-900 shadow-2xs" : "hover:text-gray-900"
             }`}
             title="Table View"
+            aria-label="Table View"
           >
             <List className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode("grid")}
-            className={`p-1.5 rounded-md transition cursor-pointer ${
+            className={`p-1.5 rounded-md transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
               viewMode === "grid" ? "bg-white text-gray-900 shadow-2xs" : "hover:text-gray-900"
             }`}
             title="Card Grid View"
+            aria-label="Card Grid View"
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
@@ -164,12 +182,12 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
       {/* Content Area */}
       {filteredProjects.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center space-y-3 shadow-2xs">
-          <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center mx-auto">
             <Layers className="w-6 h-6" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-gray-900">No applications found</h3>
-            <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+            <p className="text-xs text-gray-600 mt-1 max-w-sm mx-auto">
               {searchQuery
                 ? `No applications matched "${searchQuery}". Try a different keyword.`
                 : "Get started by importing your repository from GitHub or Docker."}
@@ -178,7 +196,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
           {!searchQuery && (
             <button
               onClick={onOpenNewProject}
-              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition cursor-pointer"
+              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
             >
               Create Application
             </button>
@@ -189,7 +207,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
         <div className="bg-white border border-gray-200 rounded-xl shadow-2xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50/80 text-gray-500 font-semibold border-b border-gray-200 text-[11px]">
+              <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-200 text-[11px]">
                 <tr>
                   <th className="px-5 py-3">Application</th>
                   <th className="px-4 py-3">Status</th>
@@ -219,7 +237,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                             <span className="font-semibold text-gray-900 group-hover:text-indigo-600 block truncate transition">
                               {project.name}
                             </span>
-                            <span className="text-[10px] text-gray-400 font-mono block truncate">
+                            <span className="text-[10px] text-gray-500 font-mono block truncate">
                               {project.repo_fullname}
                             </span>
                           </div>
@@ -255,12 +273,12 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                             rel="noreferrer"
                             className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-mono text-[11px] hover:underline"
                           >
-                            <Globe className="w-3 h-3 text-gray-400" />
+                            <Globe className="w-3 h-3 text-gray-500" />
                             <span className="truncate max-w-40">{activeDomain}</span>
                             <ExternalLink className="w-2.5 h-2.5 opacity-60" />
                           </a>
                         ) : (
-                          <span className="text-gray-400 text-[11px]">No domain</span>
+                          <span className="text-gray-500 text-[11px]">No domain</span>
                         )}
                       </td>
 
@@ -274,9 +292,13 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                         {project.branch || "main"}
                       </td>
 
-                      {/* Uptime */}
+                      {/* Uptime - truthful calculation */}
                       <td className="px-4 py-4 text-gray-600 text-[11px]">
-                        2d 4h
+                        {project.status === "running"
+                          ? project.created_at
+                            ? formatTimeAgo(project.created_at)
+                            : "Active"
+                          : "Stopped"}
                       </td>
 
                       {/* Actions */}
@@ -284,22 +306,25 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                         <div className="inline-flex items-center gap-1">
                           <button
                             onClick={() => onDeploy(project)}
-                            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                             title="Deploy"
+                            aria-label={`Deploy ${project.name}`}
                           >
                             <Play className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => onViewLogs(project)}
-                            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                             title="Logs"
+                            aria-label={`View logs for ${project.name}`}
                           >
                             <FileText className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleOpenConsole(project)}
-                            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition cursor-pointer"
-                            title="Terminal Console"
+                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                            title="Console Terminal"
+                            aria-label={`Open console terminal for ${project.name}`}
                           >
                             <Terminal className="w-3.5 h-3.5" />
                           </button>
@@ -307,7 +332,8 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                             onClick={() =>
                               setActiveMenuProject(activeMenuProject === project.id ? null : project.id)
                             }
-                            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                            aria-label={`More options for ${project.name}`}
                           >
                             <MoreVertical className="w-3.5 h-3.5" />
                           </button>
@@ -315,7 +341,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
 
                         {/* Dropdown Menu */}
                         {activeMenuProject === project.id && (
-                          <div className="absolute right-5 top-12 w-44 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-30 text-left text-xs animate-in fade-in">
+                          <div className="absolute right-5 top-12 w-48 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 z-20 text-left text-xs animate-in fade-in">
                             <button
                               onClick={() => {
                                 setActiveMenuProject(null);
@@ -323,7 +349,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                               }}
                               className="w-full px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700 cursor-pointer"
                             >
-                              <Settings className="w-3.5 h-3.5 text-gray-400" />
+                              <Settings className="w-3.5 h-3.5 text-gray-500" />
                               <span>Project Settings</span>
                             </button>
                             <button
@@ -333,17 +359,17 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                               }}
                               className="w-full px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700 cursor-pointer"
                             >
-                              <Key className="w-3.5 h-3.5 text-gray-400" />
+                              <Key className="w-3.5 h-3.5 text-gray-500" />
                               <span>Environment Variables</span>
                             </button>
                             <button
                               onClick={() => {
                                 setActiveMenuProject(null);
-                                onRollback(project);
+                                setConfirmTarget({ project, action: "rollback" });
                               }}
-                              className="w-full px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700 cursor-pointer"
+                              className="w-full px-3 py-2 hover:bg-amber-50 flex items-center gap-2 text-amber-700 cursor-pointer"
                             >
-                              <RotateCcw className="w-3.5 h-3.5 text-gray-400" />
+                              <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
                               <span>Rollback</span>
                             </button>
 
@@ -353,9 +379,9 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                               <button
                                 onClick={() => {
                                   setActiveMenuProject(null);
-                                  onContainerAction(project, "stop");
+                                  setConfirmTarget({ project, action: "stop" });
                                 }}
-                                className="w-full px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-amber-600 cursor-pointer"
+                                className="w-full px-3 py-2 hover:bg-rose-50 flex items-center gap-2 text-rose-600 cursor-pointer"
                               >
                                 <Square className="w-3.5 h-3.5" />
                                 <span>Stop Container</span>
@@ -366,7 +392,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                                   setActiveMenuProject(null);
                                   onContainerAction(project, "start");
                                 }}
-                                className="w-full px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-emerald-600 cursor-pointer"
+                                className="w-full px-3 py-2 hover:bg-emerald-50 flex items-center gap-2 text-emerald-600 cursor-pointer"
                               >
                                 <Play className="w-3.5 h-3.5" />
                                 <span>Start Container</span>
@@ -376,11 +402,11 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                             <button
                               onClick={() => {
                                 setActiveMenuProject(null);
-                                onContainerAction(project, "restart");
+                                setConfirmTarget({ project, action: "restart" });
                               }}
                               className="w-full px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700 cursor-pointer"
                             >
-                              <RotateCcw className="w-3.5 h-3.5 text-gray-400" />
+                              <RotateCcw className="w-3.5 h-3.5 text-gray-500" />
                               <span>Restart Container</span>
                             </button>
                           </div>
@@ -417,7 +443,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                         <h3 className="font-bold text-sm text-gray-900 group-hover:text-indigo-600 transition leading-tight">
                           {project.name}
                         </h3>
-                        <p className="text-[11px] text-gray-400 font-mono truncate max-w-45">
+                        <p className="text-[11px] text-gray-500 font-mono truncate max-w-45">
                           {project.repo_fullname}
                         </p>
                       </div>
@@ -443,7 +469,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                       rel="noreferrer"
                       className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 text-xs font-mono hover:underline"
                     >
-                      <Globe className="w-3.5 h-3.5 text-gray-400" />
+                      <Globe className="w-3.5 h-3.5 text-gray-500" />
                       <span className="truncate">{activeDomain}</span>
                       <ExternalLink className="w-3 h-3 opacity-60" />
                     </a>
@@ -458,29 +484,33 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => onDeploy(project)}
-                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                       title="Redeploy"
+                      aria-label={`Redeploy ${project.name}`}
                     >
                       <Play className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => onViewLogs(project)}
-                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                       title="Logs"
+                      aria-label={`View logs for ${project.name}`}
                     >
                       <FileText className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleOpenConsole(project)}
-                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                       title="Terminal Console"
+                      aria-label={`Open terminal for ${project.name}`}
                     >
                       <Terminal className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => onOpenSettings(project)}
-                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                       title="Settings"
+                      aria-label={`Settings for ${project.name}`}
                     >
                       <Settings className="w-3.5 h-3.5" />
                     </button>
@@ -490,6 +520,38 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
             );
           })}
         </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmTarget && (
+        <ConfirmDialog
+          isOpen={true}
+          variant={confirmTarget.action === "stop" ? "danger" : "warning"}
+          title={
+            confirmTarget.action === "stop"
+              ? `Stop container for ${confirmTarget.project.name}?`
+              : confirmTarget.action === "restart"
+              ? `Restart container for ${confirmTarget.project.name}?`
+              : `Rollback ${confirmTarget.project.name} to previous release?`
+          }
+          description={
+            confirmTarget.action === "stop"
+              ? `Stopping will shut down container spanel-app-${confirmTarget.project.name}. The application will be temporarily unavailable.`
+              : confirmTarget.action === "restart"
+              ? `Restarting will cycle the container processes. In-flight HTTP requests may be interrupted.`
+              : `Rolling back will revert ${confirmTarget.project.name} to its previously successful image artifact.`
+          }
+          confirmLabel={
+            confirmTarget.action === "stop"
+              ? "Stop Container"
+              : confirmTarget.action === "restart"
+              ? "Restart Container"
+              : "Rollback Application"
+          }
+          cancelLabel="Cancel"
+          onConfirm={handleExecuteConfirm}
+          onCancel={() => setConfirmTarget(null)}
+        />
       )}
     </div>
   );

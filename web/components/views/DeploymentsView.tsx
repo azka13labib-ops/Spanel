@@ -11,6 +11,7 @@ import {
   Search,
 } from "lucide-react";
 import { Project } from "@/types";
+import { ConfirmDialog } from "@/components/modals/ConfirmDialog";
 
 interface DeploymentsViewProps {
   projects: Project[];
@@ -26,6 +27,7 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
   onRollback,
 }) => {
   const [search, setSearch] = useState("");
+  const [confirmRollbackProject, setConfirmRollbackProject] = useState<Project | null>(null);
 
   // Collect all deployments
   const deploymentsList: {
@@ -73,13 +75,20 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
       (d.commitHash && d.commitHash.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const handleConfirmRollback = () => {
+    if (confirmRollbackProject) {
+      onRollback(confirmRollbackProject);
+      setConfirmRollbackProject(null);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Deployments</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+          <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
             Audit deployment history, build pipelines, and commit statuses across all applications.
           </p>
         </div>
@@ -94,7 +103,8 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by application or commit..."
-            className="w-full pl-9 pr-3 py-1.5 bg-gray-50/80 focus:bg-white border border-gray-200 rounded-lg text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-sans"
+            aria-label="Search by application or commit"
+            className="w-full pl-9 pr-3 py-1.5 bg-gray-50/80 focus:bg-white border border-gray-200 rounded-lg text-xs text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-sans"
           />
         </div>
       </div>
@@ -102,12 +112,12 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
       {/* Deployments Table */}
       {filtered.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center space-y-3 shadow-2xs">
-          <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center mx-auto">
             <GitCommit className="w-6 h-6" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-gray-900">No deployment logs found</h3>
-            <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+            <p className="text-xs text-gray-600 mt-1 max-w-sm mx-auto">
               Deploy an application to start recording build logs and deployment artifacts.
             </p>
           </div>
@@ -116,7 +126,7 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
         <div className="bg-white border border-gray-200 rounded-xl shadow-2xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50/80 text-gray-500 font-semibold border-b border-gray-200 text-[11px]">
+              <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-200 text-[11px]">
                 <tr>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Application</th>
@@ -162,7 +172,7 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
                       {/* Application */}
                       <td className="px-5 py-4">
                         <div className="font-semibold text-gray-900">{dep.project.name}</div>
-                        <div className="text-[10px] text-gray-400 font-mono truncate max-w-35">
+                        <div className="text-[10px] text-gray-500 font-mono truncate max-w-35">
                           {dep.project.repo_fullname}
                         </div>
                       </td>
@@ -171,33 +181,39 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
                       <td className="px-4 py-4 font-mono text-[11px] text-gray-700">
                         {dep.commitHash ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px] text-gray-600">
+                            <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px] text-gray-600 font-mono">
                               {dep.commitHash.slice(0, 7)}
                             </span>
-                            <span className="truncate max-w-45 text-gray-600">
+                            <span className="truncate max-w-45 text-gray-600 font-sans">
                               {dep.commitMessage || "Update application"}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-[11px]">Manual trigger</span>
+                          <span className="text-gray-500 text-[11px]">Manual trigger</span>
                         )}
                       </td>
 
                       {/* Branch */}
                       <td className="px-4 py-4 font-mono text-[11px] text-gray-600">
                         <div className="inline-flex items-center gap-1">
-                          <GitBranch className="w-3 h-3 text-gray-400" />
+                          <GitBranch className="w-3 h-3 text-gray-500" />
                           <span>{dep.branch}</span>
                         </div>
                       </td>
 
-                      {/* Duration */}
+                      {/* Duration - truthful representation */}
                       <td className="px-4 py-4 text-gray-600 text-[11px]">
-                        {dep.durationMs ? `${Math.round(dep.durationMs / 1000)}s` : "24s"}
+                        {dep.durationMs !== undefined && dep.durationMs > 0 ? (
+                          `${Math.round(dep.durationMs / 1000)}s`
+                        ) : isBuilding ? (
+                          <span className="text-amber-600 font-medium">Running...</span>
+                        ) : (
+                          <span className="text-gray-400 font-mono">-</span>
+                        )}
                       </td>
 
                       {/* Date */}
-                      <td className="px-4 py-4 text-gray-500 text-[11px]">
+                      <td className="px-4 py-4 text-gray-600 text-[11px]">
                         {new Date(dep.createdAt).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
@@ -211,22 +227,25 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
                         <div className="inline-flex items-center gap-2">
                           <button
                             onClick={() => onViewLogs(dep.project)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-medium transition cursor-pointer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-medium transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                            aria-label={`View logs for ${dep.project.name}`}
                           >
                             <FileText className="w-3 h-3 text-gray-500" />
                             <span>Logs</span>
                           </button>
                           <button
                             onClick={() => onDeploy(dep.project)}
-                            className="p-1 rounded-md hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                             title="Re-run deployment"
+                            aria-label={`Re-run deployment for ${dep.project.name}`}
                           >
                             <Play className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => onRollback(dep.project)}
-                            className="p-1 rounded-md hover:bg-gray-100 text-gray-500 hover:text-amber-600 transition cursor-pointer"
+                            onClick={() => setConfirmRollbackProject(dep.project)}
+                            className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-500 hover:text-amber-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-500 outline-none"
                             title="Rollback deployment"
+                            aria-label={`Rollback deployment for ${dep.project.name}`}
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                           </button>
@@ -239,6 +258,20 @@ export const DeploymentsView: React.FC<DeploymentsViewProps> = ({
             </table>
           </div>
         </div>
+      )}
+
+      {/* Confirmation Dialog for Rollback */}
+      {confirmRollbackProject && (
+        <ConfirmDialog
+          isOpen={true}
+          variant="warning"
+          title={`Rollback deployment for ${confirmRollbackProject.name}?`}
+          description={`Rolling back will redeploy the previously successful release for application "${confirmRollbackProject.name}". Incoming HTTP requests may experience a brief transition period.`}
+          confirmLabel="Rollback Application"
+          cancelLabel="Cancel"
+          onConfirm={handleConfirmRollback}
+          onCancel={() => setConfirmRollbackProject(null)}
+        />
       )}
     </div>
   );

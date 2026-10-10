@@ -20,10 +20,13 @@ export const LogsView: React.FC<LogsViewProps> = ({ projects, onOpenTerminal }) 
   const [logType, setLogType] = useState<"app" | "container">("app");
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
-  const [logs, setLogs] = useState<string[]>([
-    "[SYS] Connecting to sPanel live runtime log stream...",
-    "[SYS] Tailscale Host IP: 100.125.7.123 (Port 8090)",
-  ]);
+  const [logs, setLogs] = useState<string[]>(() => {
+    const host = typeof window !== "undefined" ? window.location.host : "sPanel Host";
+    return [
+      "[SYS] Connecting to sPanel live runtime log stream...",
+      `[SYS] Host Connection: ${host}`,
+    ];
+  });
 
   const logEndRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -93,7 +96,7 @@ export const LogsView: React.FC<LogsViewProps> = ({ projects, onOpenTerminal }) 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Logs Stream</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+          <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
             Real-time streaming console output from your applications and container workloads.
           </p>
         </div>
@@ -103,11 +106,11 @@ export const LogsView: React.FC<LogsViewProps> = ({ projects, onOpenTerminal }) 
           {onOpenTerminal && selectedProject && (
             <button
               onClick={() => onOpenTerminal(selectedProject)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-xs cursor-pointer"
-              title="Buka interactive shell terminal container"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+              title="Open interactive shell terminal container"
             >
               <Terminal className="w-3.5 h-3.5" />
-              <span>Buka Terminal Interaktif</span>
+              <span>Open Interactive Terminal</span>
             </button>
           )}
 
@@ -126,6 +129,7 @@ export const LogsView: React.FC<LogsViewProps> = ({ projects, onOpenTerminal }) 
             <select
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
+              aria-label="Select application to stream logs"
               className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 pr-8 cursor-pointer"
             >
               {projects.map((p) => (
@@ -165,26 +169,29 @@ export const LogsView: React.FC<LogsViewProps> = ({ projects, onOpenTerminal }) 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Filter logs..."
-              className="w-full pl-8 pr-2.5 py-1.5 bg-gray-50 focus:bg-white border border-gray-200 rounded-lg text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              aria-label="Filter logs"
+              className="w-full pl-8 pr-2.5 py-1.5 bg-gray-50 focus:bg-white border border-gray-200 rounded-lg text-xs text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
 
           <button
             onClick={() => setAutoScroll(!autoScroll)}
-            className={`p-1.5 rounded-lg border text-xs font-medium transition cursor-pointer ${
+            className={`p-1.5 rounded-lg border text-xs font-medium transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
               autoScroll
                 ? "bg-indigo-50 border-indigo-200 text-indigo-700"
                 : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
             }`}
             title={autoScroll ? "Auto-scroll enabled" : "Auto-scroll disabled"}
+            aria-label={autoScroll ? "Disable auto-scroll" : "Enable auto-scroll"}
           >
             <ArrowDown className="w-4 h-4" />
           </button>
 
           <button
             onClick={() => setLogs([])}
-            className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-rose-600 hover:bg-gray-50 transition cursor-pointer"
+            className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-rose-600 hover:bg-gray-50 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none"
             title="Clear logs"
+            aria-label="Clear logs"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -209,7 +216,7 @@ export const LogsView: React.FC<LogsViewProps> = ({ projects, onOpenTerminal }) 
         {/* Terminal Body */}
         <div className="flex-1 p-4 overflow-y-auto font-mono text-xs text-gray-200 space-y-1 select-text">
           {filteredLogs.length === 0 ? (
-            <p className="text-gray-600 italic">No log lines recorded.</p>
+            <p className="text-gray-500 italic">No log lines recorded.</p>
           ) : (
             filteredLogs.map((line, idx) => {
               const isError = line.includes("ERR") || line.includes("Error") || line.includes("failed");
@@ -218,7 +225,7 @@ export const LogsView: React.FC<LogsViewProps> = ({ projects, onOpenTerminal }) 
 
               return (
                 <div key={idx} className="flex items-start gap-3 hover:bg-white/5 py-0.5 px-1 rounded">
-                  <span className="text-gray-600 text-[10px] select-none w-8 text-right shrink-0">
+                  <span className="text-gray-500 text-[10px] select-none w-8 text-right shrink-0">
                     {idx + 1}
                   </span>
                   <span

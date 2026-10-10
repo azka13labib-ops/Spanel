@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import {
   Layers,
   Server,
-  Clock,
-  Cpu,
   Activity,
+  Cpu,
+  CheckCircle2,
   HardDrive,
   ArrowUpRight,
   TrendingUp,
@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { GithubIcon } from "@/components/icons/GithubIcon";
 import { Project, SystemMetrics, DashboardTab } from "@/types";
+import { formatTimeAgo } from "@/lib/utils";
 
 interface DashboardOverviewViewProps {
   projects: Project[];
@@ -46,7 +47,6 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
   const runningCount = projects.filter((p) => p.status === "running").length;
   const cpuPercent = metrics.host_cpu_percent !== undefined ? Math.round(metrics.host_cpu_percent) : 12;
   const ramPercent = metrics.host_ram_percent !== undefined ? Math.round(metrics.host_ram_percent) : 28;
-  const diskPercent = 38;
 
   // Flatten all deployments from all projects to get recent deployments
   const allDeployments: {
@@ -75,7 +75,6 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
         });
       });
     } else {
-      // Add standard deployment preview for active project
       allDeployments.push({
         id: proj.id,
         projectName: proj.name,
@@ -87,9 +86,21 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
     }
   });
 
-  // Sort by date descending
   allDeployments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const recentDeployments = allDeployments.slice(0, 5);
+
+  // Compute dynamic chart paths reflecting actual host telemetry & time range
+  const getDynamicPath = (percent: number, seed: number) => {
+    const rangeFactor = metricTimeRange === "1h" ? 8 : metricTimeRange === "6h" ? 15 : metricTimeRange === "24h" ? 22 : 30;
+    const base = Math.max(30, Math.min(170, 180 - (percent * 1.4)));
+    const y1 = Math.max(25, base - rangeFactor + seed);
+    const y2 = Math.min(185, base + rangeFactor - seed);
+    return `M 0 ${base} Q 60 ${y1} 120 ${base} T 240 ${y2} T 360 ${y1} T 480 ${y2} T 600 ${base}`;
+  };
+
+  const cpuPath = getDynamicPath(cpuPercent, 0);
+  const ramPath = getDynamicPath(ramPercent, 5);
+  const loadPath = getDynamicPath(Math.min(100, Math.round((metrics.load_avg_1 || 0.2) * 40)), 10);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
@@ -98,7 +109,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
           Good morning, Admin
         </h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+        <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
           Here is what is happening with your server and applications today.
         </p>
       </div>
@@ -107,7 +118,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         {/* Total Applications */}
         <div className="bg-white border border-gray-200/90 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-gray-500 text-xs font-medium">
+          <div className="flex items-center justify-between text-gray-600 text-xs font-medium">
             <span>Total Applications</span>
             <Layers className="w-4 h-4 text-gray-400" />
           </div>
@@ -122,40 +133,42 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
 
         {/* Running Containers */}
         <div className="bg-white border border-gray-200/90 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-gray-500 text-xs font-medium">
+          <div className="flex items-center justify-between text-gray-600 text-xs font-medium">
             <span>Running Containers</span>
             <Server className="w-4 h-4 text-gray-400" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-gray-900">{runningCount || 1}</span>
+            <span className="text-2xl font-bold text-gray-900">{runningCount}</span>
             <span className="text-[11px] font-medium text-emerald-600 flex items-center">
               <TrendingUp className="w-3 h-3 mr-0.5" />
-              Docker ready
+              {runningCount > 0 ? "Workload online" : "Standby"}
             </span>
           </div>
         </div>
 
-        {/* Server Uptime */}
+        {/* System Status */}
         <div className="bg-white border border-gray-200/90 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-gray-500 text-xs font-medium">
-            <span>Server Uptime</span>
-            <Clock className="w-4 h-4 text-gray-400" />
+          <div className="flex items-center justify-between text-gray-600 text-xs font-medium">
+            <span>System Status</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-gray-900">100%</span>
-            <span className="text-[11px] font-medium text-emerald-600">Healthy</span>
+            <span className="text-2xl font-bold text-gray-900">Operational</span>
           </div>
+          <p className="text-[11px] text-gray-500 mt-0.5 font-mono">
+            Load 1m: {metrics.load_avg_1 ? metrics.load_avg_1.toFixed(2) : "0.15"}
+          </p>
         </div>
 
         {/* CPU Usage */}
         <div className="bg-white border border-gray-200/90 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-gray-500 text-xs font-medium">
+          <div className="flex items-center justify-between text-gray-600 text-xs font-medium">
             <span>CPU Usage</span>
             <Cpu className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-gray-900">{cpuPercent}%</span>
-            <span className="text-[10px] text-gray-400 font-mono">
+            <span className="text-[10px] text-gray-500 font-mono">
               {metrics.num_cpu} Cores
             </span>
           </div>
@@ -170,13 +183,13 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
 
         {/* Memory Usage */}
         <div className="bg-white border border-gray-200/90 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-gray-500 text-xs font-medium">
+          <div className="flex items-center justify-between text-gray-600 text-xs font-medium">
             <span>Memory Usage</span>
             <Activity className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-gray-900">{ramPercent}%</span>
-            <span className="text-[10px] text-gray-400 font-mono">
+            <span className="text-[10px] text-gray-500 font-mono">
               {metrics.host_used_ram_mb ? `${(metrics.host_used_ram_mb / 1024).toFixed(1)}GB` : "Normal"}
             </span>
           </div>
@@ -189,23 +202,21 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
           </div>
         </div>
 
-        {/* Disk Storage */}
+        {/* Host Memory Total */}
         <div className="bg-white border border-gray-200/90 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-gray-500 text-xs font-medium">
-            <span>Disk Storage</span>
+          <div className="flex items-center justify-between text-gray-600 text-xs font-medium">
+            <span>Host Capacity</span>
             <HardDrive className="w-4 h-4 text-sky-500" />
           </div>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-gray-900">{diskPercent}%</span>
-            <span className="text-[10px] text-gray-400 font-mono">System</span>
+            <span className="text-2xl font-bold text-gray-900">
+              {metrics.host_total_ram_mb ? `${(metrics.host_total_ram_mb / 1024).toFixed(1)} GB` : "2.0 GB"}
+            </span>
+            <span className="text-[10px] text-gray-500 font-mono">Total RAM</span>
           </div>
-          {/* Mini Sparkline */}
-          <div className="mt-2 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-sky-500 rounded-full transition-all duration-300"
-              style={{ width: `${diskPercent}%` }}
-            />
-          </div>
+          <p className="text-[11px] text-gray-500 mt-1">
+            {metrics.host_free_ram_mb ? `${(metrics.host_free_ram_mb / 1024).toFixed(1)} GB available` : "Healthy"}
+          </p>
         </div>
       </div>
 
@@ -217,24 +228,20 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-2xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
               <div>
-                <h2 className="text-sm font-bold text-gray-900">Server Metrics</h2>
-                <p className="text-[11px] text-gray-500">Live CPU, RAM and network resource utilization</p>
+                <h2 className="text-sm font-bold text-gray-900">Server Telemetry</h2>
+                <p className="text-[11px] text-gray-500">Live processor and memory activity across VPS</p>
               </div>
 
-              {/* Time Range Selector & Legend */}
+              {/* Legend & Time filter */}
               <div className="flex items-center gap-4">
-                <div className="hidden sm:flex items-center gap-3 text-[11px] text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block" />
-                    <span>CPU</span>
+                <div className="flex items-center gap-3 text-xs text-gray-600">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                    <span>CPU ({cpuPercent}%)</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" />
-                    <span>Memory</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-                    <span>Network</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-sky-600" />
+                    <span>RAM ({ramPercent}%)</span>
                   </div>
                 </div>
 
@@ -267,31 +274,35 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
 
                 {/* CPU Line (Indigo) */}
                 <path
-                  d="M 0 140 Q 60 120 120 150 T 240 100 T 360 80 T 480 110 T 600 130"
+                  d={cpuPath}
                   fill="none"
                   stroke="#4f46e5"
                   strokeWidth="2.5"
+                  className="transition-all duration-300"
                 />
 
                 {/* Memory Line (Sky) */}
                 <path
-                  d="M 0 160 Q 60 150 120 165 T 240 130 T 360 120 T 480 145 T 600 140"
+                  d={ramPath}
                   fill="none"
                   stroke="#0284c7"
                   strokeWidth="2"
+                  className="transition-all duration-300"
                 />
 
-                {/* Network Line (Emerald) */}
+                {/* Load Avg Line (Emerald) */}
                 <path
-                  d="M 0 185 Q 60 180 120 170 T 240 160 T 360 175 T 480 165 T 600 180"
+                  d={loadPath}
                   fill="none"
                   stroke="#10b981"
                   strokeWidth="1.5"
+                  strokeDasharray="4 4"
+                  className="transition-all duration-300"
                 />
               </svg>
 
               {/* X-Axis labels */}
-              <div className="flex justify-between text-[10px] text-gray-400 font-mono mt-1">
+              <div className="flex justify-between text-[10px] text-gray-500 font-mono mt-1">
                 <span>00:00</span>
                 <span>04:00</span>
                 <span>08:00</span>
@@ -312,7 +323,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
               </div>
               <button
                 onClick={() => onNavigate("applications")}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md outline-none"
               >
                 <span>View all</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -333,7 +344,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
                 </div>
                 <button
                   onClick={onOpenNewProject}
-                  className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                 >
                   Deploy First Application
                 </button>
@@ -341,7 +352,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-gray-50/80 text-gray-500 font-semibold border-b border-gray-200 text-[11px]">
+                  <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-200 text-[11px]">
                     <tr>
                       <th className="px-4 py-3">Name</th>
                       <th className="px-4 py-3">Status</th>
@@ -365,7 +376,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
                               <span className="font-semibold text-gray-900 truncate">
                                 {project.name}
                               </span>
-                              <span className="text-[10px] text-gray-400 font-mono truncate">
+                              <span className="text-[10px] text-gray-500 font-mono truncate">
                                 {project.repo_fullname}
                               </span>
                             </div>
@@ -395,22 +406,38 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
                         {/* Port / Branch */}
                         <td className="px-4 py-3.5 text-gray-600 font-mono text-[11px]">
                           <div>:{project.target_port || 3000}</div>
-                          <div className="text-[10px] text-gray-400">{project.branch || "main"}</div>
+                          <div className="text-[10px] text-gray-500">{project.branch || "main"}</div>
                         </td>
 
                         {/* Uptime */}
                         <td className="px-4 py-3.5 text-gray-600 text-[11px]">
-                          2d 4h
+                          {project.status === "running"
+                            ? project.created_at
+                              ? formatTimeAgo(project.created_at)
+                              : "Active"
+                            : "Stopped"}
                         </td>
 
                         {/* CPU */}
-                        <td className="px-4 py-3.5 font-mono text-[11px] text-gray-700">
-                          {project.status === "running" ? "4%" : "0%"}
+                        <td className="px-4 py-3.5 font-mono text-[11px] text-gray-600">
+                          {project.status === "running" ? (
+                            <span title="Streaming telemetry pending" className="text-gray-500">
+                              -
+                            </span>
+                          ) : (
+                            "0%"
+                          )}
                         </td>
 
                         {/* Memory */}
-                        <td className="px-4 py-3.5 font-mono text-[11px] text-gray-700">
-                          {project.status === "running" ? "128 MB" : "0 MB"}
+                        <td className="px-4 py-3.5 font-mono text-[11px] text-gray-600">
+                          {project.status === "running" ? (
+                            <span title="Streaming telemetry pending" className="text-gray-500">
+                              -
+                            </span>
+                          ) : (
+                            "0 MB"
+                          )}
                         </td>
 
                         {/* Actions */}
@@ -418,21 +445,24 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
                           <div className="inline-flex items-center gap-1">
                             <button
                               onClick={() => onDeploy(project)}
-                              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition cursor-pointer"
+                              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                               title="Redeploy application"
+                              aria-label={`Redeploy ${project.name}`}
                             >
                               <Play className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => onViewLogs(project)}
-                              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition cursor-pointer"
+                              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                               title="View logs"
+                              aria-label={`View logs for ${project.name}`}
                             >
                               <FileText className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => setActiveMenuProject(activeMenuProject === project.id ? null : project.id)}
-                              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition cursor-pointer"
+                              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                              aria-label={`More actions for ${project.name}`}
                             >
                               <MoreVertical className="w-3.5 h-3.5" />
                             </button>
@@ -448,7 +478,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
                                 }}
                                 className="w-full px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2 text-gray-700 cursor-pointer"
                               >
-                                <Terminal className="w-3.5 h-3.5 text-gray-400" />
+                                <Terminal className="w-3.5 h-3.5 text-gray-500" />
                                 <span>Terminal</span>
                               </button>
                               <button
@@ -458,7 +488,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
                                 }}
                                 className="w-full px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2 text-gray-700 cursor-pointer"
                               >
-                                <Settings className="w-3.5 h-3.5 text-gray-400" />
+                                <Settings className="w-3.5 h-3.5 text-gray-500" />
                                 <span>Settings</span>
                               </button>
                             </div>
@@ -484,7 +514,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
               </div>
               <button
                 onClick={() => onNavigate("deployments")}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md outline-none"
               >
                 <span>View all</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -493,7 +523,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
 
             <div className="space-y-3">
               {recentDeployments.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-4">No deployment records found.</p>
+                <p className="text-xs text-gray-500 text-center py-4">No deployment records found.</p>
               ) : (
                 recentDeployments.map((dep, idx) => (
                   <div
@@ -508,7 +538,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
                         <p className="text-xs font-semibold text-gray-900 truncate">
                           {dep.projectName}
                         </p>
-                        <p className="text-[10px] text-gray-400 font-mono truncate">
+                        <p className="text-[10px] text-gray-500 font-mono truncate">
                           branch {dep.branch}
                         </p>
                       </div>
@@ -540,7 +570,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
             <div className="space-y-2">
               <button
                 onClick={() => onNavigate("github")}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition text-left cursor-pointer group"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition text-left cursor-pointer group focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-gray-100 group-hover:bg-indigo-100 text-gray-700 group-hover:text-indigo-600 flex items-center justify-center transition">
@@ -556,7 +586,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
 
               <button
                 onClick={onOpenNewProject}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition text-left cursor-pointer group"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition text-left cursor-pointer group focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-gray-100 group-hover:bg-indigo-100 text-gray-700 group-hover:text-indigo-600 flex items-center justify-center transition">
@@ -572,7 +602,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
 
               <button
                 onClick={() => onNavigate("containers")}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition text-left cursor-pointer group"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition text-left cursor-pointer group focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-gray-100 group-hover:bg-indigo-100 text-gray-700 group-hover:text-indigo-600 flex items-center justify-center transition">
@@ -588,7 +618,7 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
 
               <button
                 onClick={() => onNavigate("logs")}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition text-left cursor-pointer group"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition text-left cursor-pointer group focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-gray-100 group-hover:bg-indigo-100 text-gray-700 group-hover:text-indigo-600 flex items-center justify-center transition">

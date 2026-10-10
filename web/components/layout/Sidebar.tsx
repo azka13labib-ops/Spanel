@@ -106,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   )}
                 </button>
               </div>
-              <span className="text-[11px] text-gray-400">Zero-Config Hosting</span>
+              <span className="text-[11px] text-gray-500">Zero-Config Hosting</span>
             </div>
           </div>
           {onCloseMobile && (
@@ -174,7 +174,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[11px] font-semibold text-gray-800">
                 Linux VPS Server
               </span>
-              <span className="text-[10px] text-gray-400 font-mono">
+              <span className="text-[10px] text-gray-500 font-mono">
                 {metrics.os} {metrics.arch}
               </span>
             </div>
@@ -217,7 +217,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Disk */}
             <div>
               <div className="flex justify-between text-gray-600 mb-1">
-                <span>Disk Storage</span>
+                <span>Host Storage (Est. 38%)</span>
                 <span className="font-semibold text-gray-900">{diskPercent}%</span>
               </div>
               <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">

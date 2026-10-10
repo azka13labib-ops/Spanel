@@ -53,6 +53,8 @@ export function ProjectSettingsModal({
   } | null>(null);
   const [copiedIp, setCopiedIp] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [prevProject, setPrevProject] = useState(project);
 
@@ -66,6 +68,8 @@ export function ProjectSettingsModal({
       setDeleteConfirm("");
       setSavedSuccess(false);
       setVerifyResult(null);
+      setFormError(null);
+      setDeleteError(null);
     }
   }
 
@@ -80,8 +84,9 @@ export function ProjectSettingsModal({
   const dnsRecordName = isSubdomain ? domainParts[0] : "@";
 
   const handleVerifyDns = async () => {
+    setFormError(null);
     if (!cleanDomain) {
-      alert("Masukkan nama domain terlebih dahulu.");
+      setFormError("Please enter a custom domain name before running DNS verification.");
       return;
     }
     setVerifyLoading(true);
@@ -90,6 +95,7 @@ export function ProjectSettingsModal({
       setVerifyResult(res);
     } catch (err) {
       console.error(err);
+      setFormError("DNS verification check encountered an unexpected error.");
     } finally {
       setVerifyLoading(false);
     }
@@ -103,6 +109,7 @@ export function ProjectSettingsModal({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     setLoading(true);
     setSavedSuccess(false);
     const res = await updateProject(project.id, {
@@ -122,13 +129,14 @@ export function ProjectSettingsModal({
         onClose();
       }, 800);
     } else {
-      alert("Failed to update project: " + (res.error || domainRes.error));
+      setFormError("Failed to update project: " + (res.error || domainRes.error || "Unknown error"));
     }
   };
 
   const handleDelete = async () => {
+    setDeleteError(null);
     if (deleteConfirm !== project.name) {
-      alert("Please type the project name to confirm.");
+      setDeleteError(`Please type the exact project name "${project.name}" to confirm deletion.`);
       return;
     }
     setLoading(true);
@@ -138,7 +146,7 @@ export function ProjectSettingsModal({
       onSuccess();
       onClose();
     } else {
-      alert("Failed to delete project: " + res.error);
+      setDeleteError("Failed to delete project: " + (res.error || "Unknown error"));
     }
   };
 
@@ -168,6 +176,26 @@ export function ProjectSettingsModal({
 
         <div className="p-6 overflow-y-auto space-y-6">
           <form onSubmit={handleSave} className="space-y-6">
+            {formError && (
+              <div
+                role="alert"
+                className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{formError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormError(null)}
+                  className="text-rose-500 hover:text-rose-700 p-1"
+                  aria-label="Dismiss alert"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Git Configuration Section */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -447,6 +475,26 @@ export function ProjectSettingsModal({
             <p className="text-xs text-gray-600">
               Permanently delete this project, its Docker container, volume mounts, and deployment histories.
             </p>
+
+            {deleteError && (
+              <div
+                role="alert"
+                className="p-3.5 rounded-xl bg-rose-100 border border-rose-300 text-rose-800 text-xs flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-700" />
+                  <span>{deleteError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDeleteError(null)}
+                  className="text-rose-600 hover:text-rose-800 p-1"
+                  aria-label="Dismiss alert"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-700">

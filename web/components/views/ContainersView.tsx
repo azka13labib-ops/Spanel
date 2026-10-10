@@ -9,6 +9,7 @@ import {
   Search,
 } from "lucide-react";
 import { Project } from "@/types";
+import { ConfirmDialog } from "@/components/modals/ConfirmDialog";
 
 interface ContainersViewProps {
   projects: Project[];
@@ -24,18 +25,32 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
   onViewLogs,
 }) => {
   const [search, setSearch] = useState("");
+  const [confirmTarget, setConfirmTarget] = useState<{
+    project: Project;
+    action: "stop" | "restart";
+  } | null>(null);
 
-  const filtered = projects.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.repo_fullname.toLowerCase().includes(search.toLowerCase())
+  const filtered = projects.filter(
+    (p) =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.repo_fullname.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleExecuteAction = () => {
+    if (confirmTarget) {
+      onContainerAction(confirmTarget.project, confirmTarget.action);
+      setConfirmTarget(null);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Containers</h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+          Containers
+        </h1>
+        <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
           Inspect and control Docker container instances, ports, and logs running on this VPS.
         </p>
       </div>
@@ -48,8 +63,9 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search container by name..."
-            className="w-full pl-9 pr-3 py-1.5 bg-gray-50/80 focus:bg-white border border-gray-200 rounded-lg text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-sans"
+            placeholder="Search container by name or repository..."
+            aria-label="Search container by name or repository"
+            className="w-full pl-9 pr-3 py-1.5 bg-gray-50/80 focus:bg-white border border-gray-200 rounded-lg text-xs text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-sans"
           />
         </div>
       </div>
@@ -57,12 +73,12 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
       {/* Containers Table */}
       {filtered.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center space-y-3 shadow-2xs">
-          <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center mx-auto">
             <Server className="w-6 h-6" />
           </div>
           <div>
             <h3 className="text-sm font-bold text-gray-900">No active containers found</h3>
-            <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+            <p className="text-xs text-gray-600 mt-1 max-w-sm mx-auto">
               Containers are automatically spun up when an application or service is deployed.
             </p>
           </div>
@@ -71,7 +87,7 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
         <div className="bg-white border border-gray-200 rounded-xl shadow-2xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50/80 text-gray-500 font-semibold border-b border-gray-200 text-[11px]">
+              <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-200 text-[11px]">
                 <tr>
                   <th className="px-5 py-3">Container Name</th>
                   <th className="px-4 py-3">Status</th>
@@ -99,7 +115,7 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
                             <span className="font-mono font-semibold text-gray-900 block">
                               {containerName}
                             </span>
-                            <span className="text-[10px] text-gray-400 block">
+                            <span className="text-[10px] text-gray-500 block">
                               App: {project.name}
                             </span>
                           </div>
@@ -111,12 +127,12 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
                         {isRunning ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>Up (healthy)</span>
+                            <span>Running (active)</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                            <span>Exited</span>
+                            <span>Stopped (exited)</span>
                           </span>
                         )}
                       </td>
@@ -133,14 +149,26 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
                         0.0.0.0:{project.target_port || 3000}
                       </td>
 
-                      {/* CPU */}
+                      {/* CPU - truthful indicator */}
                       <td className="px-4 py-4 font-mono text-[11px] text-gray-600">
-                        {isRunning ? "2.1%" : "0.0%"}
+                        {isRunning ? (
+                          <span title="Per-container streaming telemetry idle" className="text-gray-500">
+                            -
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">0.0%</span>
+                        )}
                       </td>
 
-                      {/* Memory */}
+                      {/* Memory - truthful indicator */}
                       <td className="px-4 py-4 font-mono text-[11px] text-gray-600">
-                        {isRunning ? "128 MB" : "0 MB"}
+                        {isRunning ? (
+                          <span title="Per-container streaming telemetry idle" className="text-gray-500">
+                            -
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">0 MB</span>
+                        )}
                       </td>
 
                       {/* Actions */}
@@ -148,42 +176,47 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
                         <div className="inline-flex items-center gap-1">
                           {isRunning ? (
                             <button
-                              onClick={() => onContainerAction(project, "stop")}
-                              className="p-1.5 rounded-md hover:bg-gray-100 text-amber-600 transition cursor-pointer"
+                              onClick={() => setConfirmTarget({ project, action: "stop" })}
+                              className="p-1.5 rounded-lg hover:bg-rose-50 text-amber-700 hover:text-rose-700 transition focus-visible:ring-2 focus-visible:ring-rose-500 outline-none cursor-pointer"
                               title="Stop container"
+                              aria-label={`Stop container for ${project.name}`}
                             >
                               <Square className="w-3.5 h-3.5" />
                             </button>
                           ) : (
                             <button
                               onClick={() => onContainerAction(project, "start")}
-                              className="p-1.5 rounded-md hover:bg-gray-100 text-emerald-600 transition cursor-pointer"
+                              className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none cursor-pointer"
                               title="Start container"
+                              aria-label={`Start container for ${project.name}`}
                             >
                               <Play className="w-3.5 h-3.5" />
                             </button>
                           )}
 
                           <button
-                            onClick={() => onContainerAction(project, "restart")}
-                            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition cursor-pointer"
+                            onClick={() => setConfirmTarget({ project, action: "restart" })}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
                             title="Restart container"
+                            aria-label={`Restart container for ${project.name}`}
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                           </button>
 
                           <button
                             onClick={() => onOpenTerminal(project)}
-                            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
                             title="Open shell terminal"
+                            aria-label={`Open terminal for ${project.name}`}
                           >
                             <Terminal className="w-3.5 h-3.5" />
                           </button>
 
                           <button
                             onClick={() => onViewLogs(project)}
-                            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition cursor-pointer"
+                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
                             title="View container logs"
+                            aria-label={`View logs for ${project.name}`}
                           >
                             <FileText className="w-3.5 h-3.5" />
                           </button>
@@ -196,6 +229,28 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
             </table>
           </div>
         </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmTarget && (
+        <ConfirmDialog
+          isOpen={true}
+          variant={confirmTarget.action === "stop" ? "danger" : "warning"}
+          title={
+            confirmTarget.action === "stop"
+              ? `Stop container spanel-app-${confirmTarget.project.name}?`
+              : `Restart container spanel-app-${confirmTarget.project.name}?`
+          }
+          description={
+            confirmTarget.action === "stop"
+              ? `Stopping this container will make the application "${confirmTarget.project.name}" immediately unavailable to incoming HTTP requests until manually restarted.`
+              : `Restarting will cycle the container processes. In-flight requests may temporarily drop during the restart transition.`
+          }
+          confirmLabel={confirmTarget.action === "stop" ? "Stop Container" : "Restart Container"}
+          cancelLabel="Cancel"
+          onConfirm={handleExecuteAction}
+          onCancel={() => setConfirmTarget(null)}
+        />
       )}
     </div>
   );

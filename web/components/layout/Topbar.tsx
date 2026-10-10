@@ -79,8 +79,8 @@ export const Topbar: React.FC<TopbarProps> = ({
     anomalies.push({
       id: "cpu-critical",
       level: "critical",
-      title: `Beban CPU Kritis (${Math.round(cpuPct)}%)`,
-      description: `Beban pemrosesan host hampir mencapai batas maksimal (${metrics.num_cpu} Core).`,
+      title: `Critical CPU Load (${Math.round(cpuPct)}%)`,
+      description: `Host processor load is nearing capacity limit (${metrics.num_cpu} Cores).`,
       actionLabel: "Monitoring",
       onAction: () => onNavigate?.("monitoring"),
     });
@@ -88,8 +88,8 @@ export const Topbar: React.FC<TopbarProps> = ({
     anomalies.push({
       id: "cpu-warning",
       level: "warning",
-      title: `Penggunaan CPU Tinggi (${Math.round(cpuPct)}%)`,
-      description: `Beban CPU meningkat signifikan di atas ambang batas 85%.`,
+      title: `High CPU Usage (${Math.round(cpuPct)}%)`,
+      description: `Host CPU load has risen significantly above the 85% threshold.`,
       actionLabel: "Monitoring",
       onAction: () => onNavigate?.("monitoring"),
     });
@@ -100,8 +100,8 @@ export const Topbar: React.FC<TopbarProps> = ({
     anomalies.push({
       id: "ram-critical",
       level: "critical",
-      title: `Memori RAM Kritis (${Math.round(ramPct)}%)`,
-      description: `Kapasitas RAM host tersisa sangat sedikit (${Math.round(metrics.host_used_ram_mb ?? 0)} MB / ${Math.round(metrics.host_total_ram_mb ?? 0)} MB).`,
+      title: `Critical RAM Utilization (${Math.round(ramPct)}%)`,
+      description: `Available host RAM is nearly exhausted (${Math.round(metrics.host_used_ram_mb ?? 0)} MB / ${Math.round(metrics.host_total_ram_mb ?? 0)} MB).`,
       actionLabel: "Monitoring",
       onAction: () => onNavigate?.("monitoring"),
     });
@@ -109,8 +109,8 @@ export const Topbar: React.FC<TopbarProps> = ({
     anomalies.push({
       id: "ram-warning",
       level: "warning",
-      title: `Penggunaan RAM Tinggi (${Math.round(ramPct)}%)`,
-      description: `Kapasitas RAM host terpakai lebih dari 85%.`,
+      title: `High RAM Usage (${Math.round(ramPct)}%)`,
+      description: `Host memory consumption exceeds 85% of physical capacity.`,
       actionLabel: "Monitoring",
       onAction: () => onNavigate?.("monitoring"),
     });
@@ -122,8 +122,8 @@ export const Topbar: React.FC<TopbarProps> = ({
       anomalies.push({
         id: `stopped-${p.id}`,
         level: "warning",
-        title: `Container ${p.name} Berhenti`,
-        description: `Container spanel-app-${p.name} dalam status "${p.status}". Aplikasi tidak dapat melayani request.`,
+        title: `Container ${p.name} Stopped`,
+        description: `Container spanel-app-${p.name} is in "${p.status}" state. The application cannot serve traffic.`,
         actionLabel: "Start",
         onAction: () => onContainerAction?.(p, "start"),
         secondaryActionLabel: "Logs",
@@ -133,6 +133,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   });
 
   const runningCount = projects.filter((p) => p.status === "running").length;
+  const currentHost = metrics.host_ip || (typeof window !== "undefined" ? window.location.hostname : "sPanel Host");
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-white border-b border-gray-200 px-4 sm:px-8 flex items-center justify-between gap-4">
@@ -140,8 +141,9 @@ export const Topbar: React.FC<TopbarProps> = ({
       <div className="flex items-center gap-3 flex-1 max-w-xl">
         <button
           onClick={onOpenMobileMenu}
-          className="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 lg:hidden cursor-pointer"
+          className="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 lg:hidden cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
           title="Open menu"
+          aria-label="Open navigation menu"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -153,7 +155,8 @@ export const Topbar: React.FC<TopbarProps> = ({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search applications, repositories, or containers..."
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9.5 pr-4 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+            aria-label="Search applications, repositories, or containers"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9.5 pr-4 py-2 text-xs text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
           />
         </div>
       </div>
@@ -163,8 +166,9 @@ export const Topbar: React.FC<TopbarProps> = ({
         {metrics.host_ip && (
           <button
             onClick={handleCopyIP}
-            className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 transition text-xs font-mono cursor-pointer"
-            title="Click to copy Server Public/Host IP"
+            className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 transition text-xs font-mono cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+            title="Click to copy Server Host IP"
+            aria-label="Copy server host IP"
           >
             <Globe className="w-3.5 h-3.5 text-indigo-500" />
             <span>{metrics.host_ip}</span>
@@ -180,10 +184,11 @@ export const Topbar: React.FC<TopbarProps> = ({
         <div className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition cursor-pointer"
-            title={anomalies.length > 0 ? `${anomalies.length} anomali server terdeteksi` : "Semua server normal"}
+            className="relative p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+            title={anomalies.length > 0 ? `${anomalies.length} server anomalies detected` : "All server workloads healthy"}
+            aria-label="Server anomaly notifications"
           >
-            <Bell className={`w-4 h-4 ${anomalies.length > 0 ? "text-rose-600" : "text-gray-500"}`} />
+            <Bell className={`w-4 h-4 ${anomalies.length > 0 ? "text-rose-600" : "text-gray-600"}`} />
             {anomalies.length > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center animate-pulse shadow-xs">
                 {anomalies.length}
@@ -196,16 +201,16 @@ export const Topbar: React.FC<TopbarProps> = ({
               <div className="flex items-center justify-between pb-2 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-gray-900">
-                    {anomalies.length > 0 ? "Anomali & Alert Server" : "Status Kesehatan Server"}
+                    {anomalies.length > 0 ? "Server Anomalies & Alerts" : "System Health Status"}
                   </span>
                   {anomalies.length > 0 && (
                     <span className="px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold text-[10px]">
-                      {anomalies.length} Masalah
+                      {anomalies.length} Issues
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] text-gray-400 font-mono">
-                  {anomalies.length > 0 ? "Perlu Tindakan" : "All Healthy"}
+                <span className="text-[10px] text-gray-500 font-mono">
+                  {anomalies.length > 0 ? "Attention Required" : "All Healthy"}
                 </span>
               </div>
 
@@ -269,9 +274,9 @@ export const Topbar: React.FC<TopbarProps> = ({
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="font-semibold text-xs text-emerald-950">Semua Layanan Berjalan Normal</p>
+                    <p className="font-semibold text-xs text-emerald-950">All Services Operating Normally</p>
                     <p className="text-[11px] text-emerald-700 mt-0.5">
-                      CPU {Math.round(cpuPct)}% • RAM {Math.round(ramPct)}% • Container ({runningCount}/{projects.length} Active). Tidak ada anomali terdeteksi.
+                      CPU {Math.round(cpuPct)}% • RAM {Math.round(ramPct)}% • Containers ({runningCount}/{projects.length} Active). No anomalies detected.
                     </p>
                   </div>
                 </div>
@@ -284,14 +289,15 @@ export const Topbar: React.FC<TopbarProps> = ({
         <div className="relative">
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 p-1.5 sm:px-2 sm:py-1.5 rounded-lg hover:bg-gray-100 transition cursor-pointer text-left"
+            className="flex items-center gap-2 p-1.5 sm:px-2 sm:py-1.5 rounded-lg hover:bg-gray-100 transition cursor-pointer text-left focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+            aria-label="User account menu"
           >
             <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs border border-indigo-200">
               <User className="w-4 h-4" />
             </div>
             <div className="hidden sm:flex flex-col">
               <span className="text-xs font-semibold text-gray-900 leading-tight">admin</span>
-              <span className="text-[10px] text-gray-400 leading-tight">Administrator</span>
+              <span className="text-[10px] text-gray-500 leading-tight">Administrator</span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-gray-400 hidden sm:block" />
           </button>
@@ -300,7 +306,7 @@ export const Topbar: React.FC<TopbarProps> = ({
             <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl p-1 z-50 text-xs animate-in fade-in">
               <div className="px-3 py-2 border-b border-gray-100">
                 <p className="font-medium text-gray-900">Signed in as admin</p>
-                <p className="text-[10px] text-gray-400 font-mono">100.125.7.123</p>
+                <p className="text-[10px] text-gray-500 font-mono">{currentHost}</p>
               </div>
 
               {onOpenUpdateModal && (
@@ -313,7 +319,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                 >
                   <span className="flex items-center gap-2">
                     <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Cek Pembaruan</span>
+                    <span>Check for Updates</span>
                   </span>
                   {versionInfo?.has_update && (
                     <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
@@ -343,12 +349,13 @@ export const Topbar: React.FC<TopbarProps> = ({
         {onOpenUpdateModal && (
           <button
             onClick={onOpenUpdateModal}
-            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition cursor-pointer shadow-2xs ${
+            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition cursor-pointer shadow-2xs focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
               versionInfo?.has_update
                 ? "bg-indigo-50 border-indigo-300 text-indigo-700 hover:bg-indigo-100"
                 : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
             }`}
-            title={versionInfo?.has_update ? `Pembaruan sPanel ${versionInfo.latest_version} tersedia!` : "Periksa Pembaruan sPanel"}
+            title={versionInfo?.has_update ? `sPanel update ${versionInfo.latest_version} available!` : "Check for sPanel updates"}
+            aria-label="Check sPanel updates"
           >
             {versionInfo?.has_update ? (
               <span className="relative flex h-2 w-2">
@@ -358,7 +365,7 @@ export const Topbar: React.FC<TopbarProps> = ({
             ) : null}
             <Sparkles className={`w-3.5 h-3.5 ${versionInfo?.has_update ? "text-indigo-600" : "text-gray-400"}`} />
             <span className="hidden sm:inline">
-              {versionInfo?.has_update ? `Update ${versionInfo.latest_version || "Tersedia"}` : "Cek Update"}
+              {versionInfo?.has_update ? `Update ${versionInfo.latest_version || "Available"}` : "Check Updates"}
             </span>
             <span className="sm:hidden">Update</span>
           </button>
@@ -367,7 +374,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         {/* Primary Action Button */}
         <button
           onClick={onOpenNewProject}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition shadow-xs cursor-pointer active:scale-98"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition shadow-xs cursor-pointer active:scale-98 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
         >
           <Plus className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Deploy Application</span>

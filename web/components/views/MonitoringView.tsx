@@ -27,13 +27,24 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({ metrics }) => {
     }
   };
 
+  const getDynamicPath = (percent: number, seed: number) => {
+    const rangeFactor = timeRange === "1h" ? 6 : timeRange === "6h" ? 12 : timeRange === "24h" ? 18 : 25;
+    const base = Math.max(25, Math.min(130, 135 - (percent * 1.1)));
+    const y1 = Math.max(20, base - rangeFactor + seed);
+    const y2 = Math.min(140, base + rangeFactor - seed);
+    return `M 0 ${base} Q 50 ${y1} 100 ${base} T 200 ${y2} T 300 ${y1} T 400 ${y2} T 500 ${base}`;
+  };
+
+  const cpuPath = getDynamicPath(cpuPercent, 0);
+  const ramPath = getDynamicPath(ramPercent, 5);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">System Monitoring</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+          <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
             Real-time resource metrics, kernel telemetry, and host utilization.
           </p>
         </div>
@@ -44,7 +55,7 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({ metrics }) => {
             <button
               key={r}
               onClick={() => setTimeRange(r)}
-              className={`px-3 py-1.5 rounded-md transition cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
                 timeRange === r
                   ? "bg-white text-gray-900 font-semibold shadow-2xs"
                   : "hover:text-gray-900"
@@ -59,22 +70,23 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({ metrics }) => {
       {/* Host Specifications Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs space-y-1">
-          <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Host Server</span>
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Host Server</span>
           <div className="flex items-center justify-between">
             <span className="font-bold text-sm text-gray-900 capitalize">{metrics.os} / {metrics.arch}</span>
             <Server className="w-4 h-4 text-gray-400" />
           </div>
-          <p className="text-[11px] text-gray-500 font-mono">Kernel 5.15+ LTS</p>
+          <p className="text-[11px] text-gray-600 font-mono">Linux Host Subsystem</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs space-y-1">
-          <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Host IP Address</span>
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Host IP Address</span>
           <div className="flex items-center justify-between">
             <span className="font-mono font-bold text-sm text-gray-900">{metrics.host_ip}</span>
             <button
               onClick={handleCopyIP}
-              className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-700 transition cursor-pointer"
+              className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
               title="Copy IP"
+              aria-label="Copy Host IP Address"
             >
               {copiedIP ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
@@ -83,21 +95,21 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({ metrics }) => {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs space-y-1">
-          <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">CPU Cores</span>
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">CPU Cores</span>
           <div className="flex items-center justify-between">
             <span className="font-bold text-sm text-gray-900">{metrics.num_cpu} vCPU Cores</span>
             <Cpu className="w-4 h-4 text-indigo-500" />
           </div>
-          <p className="text-[11px] text-gray-500 font-mono">1m Load: {metrics.load_avg_1?.toFixed(2) || "0.15"}</p>
+          <p className="text-[11px] text-gray-600 font-mono">1m Load: {metrics.load_avg_1?.toFixed(2) || "0.15"}</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs space-y-1">
-          <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Go Goroutines</span>
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">sPanel Agent Health</span>
           <div className="flex items-center justify-between">
-            <span className="font-bold text-sm text-gray-900">{metrics.goroutines} Active</span>
+            <span className="font-bold text-sm text-gray-900">{metrics.goroutines} Goroutines</span>
             <Zap className="w-4 h-4 text-emerald-500" />
           </div>
-          <p className="text-[11px] text-gray-500 font-mono">Alloc: {metrics.alloc_mb} MB</p>
+          <p className="text-[11px] text-gray-600 font-mono">Agent Alloc: {metrics.alloc_mb} MB</p>
         </div>
       </div>
 
@@ -112,7 +124,9 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({ metrics }) => {
             </div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl font-bold text-gray-900">{cpuPercent}%</span>
-              <span className="text-[11px] text-emerald-600 font-medium">Normal</span>
+              <span className="text-[11px] text-emerald-600 font-medium">
+                {cpuPercent > 80 ? "High" : "Normal"}
+              </span>
             </div>
           </div>
 
@@ -122,13 +136,14 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({ metrics }) => {
               <line x1="0" y1="75" x2="500" y2="75" stroke="#f3f4f6" strokeWidth="1" strokeDasharray="3 3" />
               <line x1="0" y1="120" x2="500" y2="120" stroke="#f3f4f6" strokeWidth="1" strokeDasharray="3 3" />
               <path
-                d="M 0 110 Q 50 90 100 120 T 200 80 T 300 65 T 400 90 T 500 100"
+                d={cpuPath}
                 fill="none"
                 stroke="#4f46e5"
                 strokeWidth="2.5"
+                className="transition-all duration-300"
               />
             </svg>
-            <div className="flex justify-between text-[10px] text-gray-400 font-mono mt-1">
+            <div className="flex justify-between text-[10px] text-gray-500 font-mono mt-1">
               <span>00:00</span>
               <span>06:00</span>
               <span>12:00</span>
@@ -151,7 +166,9 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({ metrics }) => {
             </div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl font-bold text-gray-900">{ramPercent}%</span>
-              <span className="text-[11px] text-emerald-600 font-medium">Optimal</span>
+              <span className="text-[11px] text-emerald-600 font-medium">
+                {ramPercent > 85 ? "Critical" : "Optimal"}
+              </span>
             </div>
           </div>
 
@@ -161,13 +178,14 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({ metrics }) => {
               <line x1="0" y1="75" x2="500" y2="75" stroke="#f3f4f6" strokeWidth="1" strokeDasharray="3 3" />
               <line x1="0" y1="120" x2="500" y2="120" stroke="#f3f4f6" strokeWidth="1" strokeDasharray="3 3" />
               <path
-                d="M 0 120 Q 50 110 100 130 T 200 95 T 300 90 T 400 115 T 500 110"
+                d={ramPath}
                 fill="none"
                 stroke="#0284c7"
                 strokeWidth="2.5"
+                className="transition-all duration-300"
               />
             </svg>
-            <div className="flex justify-between text-[10px] text-gray-400 font-mono mt-1">
+            <div className="flex justify-between text-[10px] text-gray-500 font-mono mt-1">
               <span>00:00</span>
               <span>06:00</span>
               <span>12:00</span>

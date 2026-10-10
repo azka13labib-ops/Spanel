@@ -12,6 +12,7 @@ import {
   Check,
   FolderGit2,
   Trash2,
+  AlertCircle,
 } from "lucide-react";
 import { GithubIcon } from "@/components/icons/GithubIcon";
 import { GitHubRepo, GitHubStatus, Project } from "@/types";
@@ -55,6 +56,7 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
   const [githubTokenInput, setGithubTokenInput] = useState<string>("");
   const [isConnectingToken, setIsConnectingToken] = useState<boolean>(false);
   const [tokenError, setTokenError] = useState<string>("");
+  const [importError, setImportError] = useState<string>("");
 
   // Repo configuration form
   const [importConfig, setImportConfig] = useState({
@@ -137,8 +139,9 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
       onProjectCreated(res.data, true);
       onClose();
       setSelectedRepo(null);
+      setImportError("");
     } else {
-      alert(`Error: ${res.error || "Failed to create project"}`);
+      setImportError(res.error || "Failed to create project");
     }
     setIsDeployingImport(false);
   };
@@ -305,6 +308,16 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
                   <p className="font-mono text-indigo-600 mt-1 font-medium">
                     {importConfig.name}.{hostIP}.sslip.io
                   </p>
+                </div>
+              )}
+
+              {importError && (
+                <div
+                  role="alert"
+                  className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2 mt-4"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{importError}</span>
                 </div>
               )}
 

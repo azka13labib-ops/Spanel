@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Project } from "@/types";
 import { GraphiteTerminal } from "@/components/terminal/GraphiteTerminal";
+import { ConfirmDialog } from "@/components/modals/ConfirmDialog";
 
 interface ApplicationDetailViewProps {
   project: Project;
@@ -49,9 +50,22 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
     defaultTab
   );
   const [isTerminalExpanded, setIsTerminalExpanded] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<{
+    action: "stop" | "restart" | "rollback";
+  } | null>(null);
 
   const isRunning = project.status === "running";
   const activeDomain = project.custom_domain || project.magic_domain;
+
+  const handleExecuteConfirm = () => {
+    if (!confirmTarget) return;
+    if (confirmTarget.action === "rollback") {
+      onRollback(project);
+    } else {
+      onContainerAction(project, confirmTarget.action);
+    }
+    setConfirmTarget(null);
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -60,8 +74,9 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition shadow-2xs cursor-pointer"
-            title="Kembali ke daftar aplikasi"
+            className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+            title="Back to applications list"
+            aria-label="Back to applications list"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -93,7 +108,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
               href={`http://${activeDomain}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-indigo-600 font-mono text-xs font-medium transition shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-indigo-600 font-mono text-xs font-medium transition shadow-2xs focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
             >
               <Globe className="w-3.5 h-3.5" />
               <span>Visit</span>
@@ -104,17 +119,19 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
           {isRunning ? (
             <>
               <button
-                onClick={() => onContainerAction(project, "restart")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium transition shadow-2xs cursor-pointer"
+                onClick={() => setConfirmTarget({ action: "restart" })}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium transition shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                 title="Restart container"
+                aria-label="Restart container"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Restart</span>
               </button>
               <button
-                onClick={() => onContainerAction(project, "stop")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium transition cursor-pointer"
+                onClick={() => setConfirmTarget({ action: "stop" })}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium transition cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none"
                 title="Stop container"
+                aria-label="Stop container"
               >
                 <Square className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Stop</span>
@@ -123,8 +140,9 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
           ) : (
             <button
               onClick={() => onContainerAction(project, "start")}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium transition cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none"
               title="Start container"
+              aria-label="Start container"
             >
               <Play className="w-3.5 h-3.5" />
               <span>Start</span>
@@ -133,7 +151,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
 
           <button
             onClick={() => onDeploy(project)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
           >
             <Play className="w-3.5 h-3.5" />
             <span>Deploy</span>
@@ -141,8 +159,9 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
 
           <button
             onClick={() => onOpenSettings(project)}
-            className="p-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition shadow-2xs cursor-pointer"
+            className="p-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
             title="Project Settings"
+            aria-label="Project Settings"
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -153,7 +172,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
       <div className="flex items-center gap-1 border-b border-gray-200 text-xs font-semibold">
         <button
           onClick={() => setActiveTab("overview")}
-          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
             activeTab === "overview"
               ? "border-indigo-600 text-indigo-600"
               : "border-transparent text-gray-500 hover:text-gray-900"
@@ -165,7 +184,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
 
         <button
           onClick={() => setActiveTab("deployments")}
-          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
             activeTab === "deployments"
               ? "border-indigo-600 text-indigo-600"
               : "border-transparent text-gray-500 hover:text-gray-900"
@@ -177,7 +196,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
 
         <button
           onClick={() => setActiveTab("logs")}
-          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
             activeTab === "logs"
               ? "border-indigo-600 text-indigo-600"
               : "border-transparent text-gray-500 hover:text-gray-900"
@@ -189,7 +208,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
 
         <button
           onClick={() => setActiveTab("console")}
-          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
             activeTab === "console"
               ? "border-indigo-600 text-indigo-600"
               : "border-transparent text-gray-500 hover:text-gray-900"
@@ -202,7 +221,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
 
         <button
           onClick={() => setActiveTab("environment")}
-          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
             activeTab === "environment"
               ? "border-indigo-600 text-indigo-600"
               : "border-transparent text-gray-500 hover:text-gray-900"
@@ -219,7 +238,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div className="bg-white border border-gray-200/80 rounded-2xl p-5 shadow-2xs space-y-3">
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
                 Container Info
               </span>
               <div className="space-y-1.5">
@@ -239,7 +258,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
             </div>
 
             <div className="bg-white border border-gray-200/80 rounded-2xl p-5 shadow-2xs space-y-3">
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
                 Networking & Domain
               </span>
               <div className="space-y-1.5">
@@ -259,7 +278,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
             </div>
 
             <div className="bg-white border border-gray-200/80 rounded-2xl p-5 shadow-2xs space-y-3">
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
                 Repository Source
               </span>
               <div className="space-y-1.5">
@@ -269,7 +288,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-gray-500">Default Branch</span>
-                  <span className="font-mono text-gray-700">main</span>
+                  <span className="font-mono text-gray-700">{project.branch || "main"}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-gray-500">Created At</span>
@@ -327,11 +346,11 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-gray-900">Deployment History</h3>
-              <p className="text-xs text-gray-500">Riwayat build dan deployment pipeline aplikasi ini.</p>
+              <p className="text-xs text-gray-500">Build and deployment pipeline history for this application.</p>
             </div>
             <button
               onClick={() => onDeploy(project)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
             >
               <Play className="w-3.5 h-3.5" />
               <span>Trigger New Build</span>
@@ -343,12 +362,12 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
               <div className="flex items-center gap-3">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                 <span className="font-semibold text-gray-900 font-mono">Latest Production Deployment</span>
-                <span className="text-[10px] text-gray-400 font-mono">spanel/{project.name}:latest</span>
+                <span className="text-[10px] text-gray-500 font-mono">spanel/{project.name}:latest</span>
               </div>
-              <div className="flex items-center gap-4 text-gray-500 font-mono text-[11px]">
+              <div className="flex items-center gap-4 text-gray-600 font-mono text-[11px]">
                 <span className="flex items-center gap-1">
                   <GitBranch className="w-3 h-3 text-gray-400" />
-                  <span>main</span>
+                  <span>{project.branch || "main"}</span>
                 </span>
                 <button
                   onClick={() => onViewLogs(project)}
@@ -357,11 +376,11 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
                   Inspect Logs
                 </button>
                 <button
-                  onClick={() => onRollback(project)}
-                  className="px-2.5 py-1 rounded bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-sans text-xs font-medium transition cursor-pointer flex items-center gap-1"
+                  onClick={() => setConfirmTarget({ action: "rollback" })}
+                  className="px-2.5 py-1 rounded bg-white hover:bg-amber-50 border border-amber-200 text-amber-700 font-sans text-xs font-medium transition cursor-pointer flex items-center gap-1"
                   title="Rollback deployment"
                 >
-                  <RotateCcw className="w-3 h-3 text-amber-500" />
+                  <RotateCcw className="w-3 h-3 text-amber-600" />
                   <span>Rollback</span>
                 </button>
               </div>
@@ -376,11 +395,11 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-gray-900">Container Runtime Stream</h3>
-              <p className="text-xs text-gray-500">Live stdout/stderr streaming dari container engine.</p>
+              <p className="text-xs text-gray-500">Live stdout/stderr streaming from the container engine.</p>
             </div>
             <button
               onClick={() => onViewLogs(project)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
             >
               <FileText className="w-3.5 h-3.5 text-emerald-600" />
               <span>Open Dedicated Log Console</span>
@@ -390,7 +409,7 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
           <div className="bg-[#0B1020] text-gray-300 font-mono text-xs p-4 rounded-xl border border-[#263244] h-80 overflow-y-auto space-y-1">
             <div className="text-emerald-400">✓ Connected to container spanel-app-{project.name} stdout</div>
             <div className="text-gray-400">[info] Ready for requests on port {project.target_port || 3000}</div>
-            <div className="text-gray-500">Tampilkan stream logs lengkap di modal inspeksi.</div>
+            <div className="text-gray-500">Stream logs in real-time using the dedicated log viewer.</div>
           </div>
         </div>
       )}
@@ -402,18 +421,19 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
             <div>
               <h2 className="text-sm font-bold text-gray-900">Container Shell Console</h2>
               <p className="text-xs text-gray-500">
-                Sesi interaktif /bin/sh di dalam isolated container <code className="font-mono text-indigo-600">spanel-app-{project.name}</code>.
+                Interactive /bin/sh session inside isolated container{" "}
+                <code className="font-mono text-indigo-600">spanel-app-{project.name}</code>.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg">
+              <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 <span className="text-[11px]">Container Sandbox</span>
               </div>
               {onOpenTerminal && (
                 <button
                   onClick={() => onOpenTerminal(project)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium transition shadow-2xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium transition shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
                   title="Open terminal in a modal window"
                 >
                   <ExternalLink className="w-3.5 h-3.5 text-indigo-600" />
@@ -439,20 +459,52 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-gray-900">Environment Variables</h3>
-              <p className="text-xs text-gray-500">Kelola variabel lingkungan terenkripsi untuk container aplikasi ini.</p>
+              <p className="text-xs text-gray-500">Manage encrypted environment variables for this application workload.</p>
             </div>
             <button
               onClick={() => onOpenEnvVars(project)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
             >
               <Key className="w-3.5 h-3.5" />
-              <span>Buka Editor Variabel</span>
+              <span>Open Variable Editor</span>
             </button>
           </div>
-          <div className="p-8 text-center text-gray-400 text-xs border border-dashed border-gray-200 rounded-xl">
-            Klik tombol di atas untuk melihat dan mengedit environment variables secara aman.
+          <div className="p-8 text-center text-gray-500 text-xs border border-dashed border-gray-200 rounded-xl">
+            Click the button above to view, inject, and edit secure environment variables.
           </div>
         </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmTarget && (
+        <ConfirmDialog
+          isOpen={true}
+          variant={confirmTarget.action === "stop" ? "danger" : "warning"}
+          title={
+            confirmTarget.action === "stop"
+              ? `Stop container for ${project.name}?`
+              : confirmTarget.action === "restart"
+              ? `Restart container for ${project.name}?`
+              : `Rollback ${project.name} to previous release?`
+          }
+          description={
+            confirmTarget.action === "stop"
+              ? `Stopping will shut down container spanel-app-${project.name}. The application will be temporarily unavailable to incoming HTTP traffic.`
+              : confirmTarget.action === "restart"
+              ? `Restarting will cycle the container processes. In-flight requests may temporarily drop.`
+              : `Rolling back will revert ${project.name} to its previous successful image artifact.`
+          }
+          confirmLabel={
+            confirmTarget.action === "stop"
+              ? "Stop Container"
+              : confirmTarget.action === "restart"
+              ? "Restart Container"
+              : "Rollback Application"
+          }
+          cancelLabel="Cancel"
+          onConfirm={handleExecuteConfirm}
+          onCancel={() => setConfirmTarget(null)}
+        />
       )}
     </div>
   );
