@@ -4,6 +4,7 @@ import {
   Globe,
   Database,
   Server,
+  Sparkles,
 } from "lucide-react";
 import { AIAssistantView } from "@/components/ai/AIAssistantView";
 import { DNSManagerView } from "@/components/dns/DNSManagerView";
@@ -14,9 +15,10 @@ import { Project, SystemMetrics } from "@/types";
 interface SettingsViewProps {
   metrics: SystemMetrics;
   projects: Project[];
+  onOpenUpdateModal?: () => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ metrics, projects }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ metrics, projects, onOpenUpdateModal }) => {
   const [activeSubTab, setActiveSubTab] = useState<"ai" | "dns" | "databases" | "server">("ai");
 
   const subTabs = [
@@ -29,11 +31,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ metrics, projects })
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">System Settings</h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-          Configure API credentials, domain zone routing, database instances, and server hygiene.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">System Settings</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+            Configure API credentials, domain zone routing, database instances, and server hygiene.
+          </p>
+        </div>
+
+        {onOpenUpdateModal && (
+          <button
+            onClick={onOpenUpdateModal}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs transition shadow-2xs cursor-pointer self-start sm:self-auto"
+            title="Periksa dan instal pembaruan sPanel"
+          >
+            <Sparkles className="w-4 h-4 text-indigo-600" />
+            <span>Cek Pembaruan sPanel</span>
+          </button>
+        )}
       </div>
 
       {/* Subtab Navigation Pills */}

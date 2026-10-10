@@ -3,15 +3,17 @@ import {
   Search,
   Trash2,
   ArrowDown,
+  Terminal,
 } from "lucide-react";
 import { Project } from "@/types";
 import { getWebSocketUrl } from "@/lib/api";
 
 interface LogsViewProps {
   projects: Project[];
+  onOpenTerminal?: (project: Project) => void;
 }
 
-export const LogsView: React.FC<LogsViewProps> = ({ projects }) => {
+export const LogsView: React.FC<LogsViewProps> = ({ projects, onOpenTerminal }) => {
   const [selectedProjectId, setSelectedProjectId] = useState<string>(
     projects.length > 0 ? projects[0].id : ""
   );
@@ -96,10 +98,23 @@ export const LogsView: React.FC<LogsViewProps> = ({ projects }) => {
           </p>
         </div>
 
-        {/* Live Badge */}
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold self-start sm:self-auto">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Live Stream</span>
+        {/* Actions & Live Badge */}
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          {onOpenTerminal && selectedProject && (
+            <button
+              onClick={() => onOpenTerminal(selectedProject)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-xs cursor-pointer"
+              title="Buka interactive shell terminal container"
+            >
+              <Terminal className="w-3.5 h-3.5" />
+              <span>Buka Terminal Interaktif</span>
+            </button>
+          )}
+
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Live Stream</span>
+          </div>
         </div>
       </div>
 

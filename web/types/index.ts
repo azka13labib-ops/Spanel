@@ -136,6 +136,7 @@ export interface BackupInfo {
 export type DashboardTab =
   | "dashboard"
   | "applications"
+  | "terminal"
   | "deployments"
   | "containers"
   | "github"

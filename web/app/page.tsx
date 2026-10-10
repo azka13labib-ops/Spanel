@@ -24,6 +24,7 @@ import { ContainersView } from "@/components/views/ContainersView";
 import { GitHubView } from "@/components/views/GitHubView";
 import { MonitoringView } from "@/components/views/MonitoringView";
 import { LogsView } from "@/components/views/LogsView";
+import { TerminalView } from "@/components/views/TerminalView";
 import { SettingsView } from "@/components/views/SettingsView";
 
 import { DeployLogModal } from "@/components/modals/DeployLogModal";
@@ -359,16 +360,32 @@ export default function Dashboard() {
             />
           )}
 
+          {activeTab === "terminal" && (
+            <TerminalView
+              projects={projects}
+              onContainerAction={handleContainerAction}
+            />
+          )}
+
           {activeTab === "monitoring" && <MonitoringView metrics={metrics} />}
 
-          {activeTab === "logs" && <LogsView projects={projects} />}
+          {activeTab === "logs" && (
+            <LogsView
+              projects={projects}
+              onOpenTerminal={(proj) => setTerminalProject(proj)}
+            />
+          )}
 
           {(activeTab === "settings" ||
             activeTab === "marketplace" ||
             activeTab === "dns" ||
             activeTab === "ai" ||
             activeTab === "server") && (
-            <SettingsView metrics={metrics} projects={projects} />
+            <SettingsView
+              metrics={metrics}
+              projects={projects}
+              onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
+            />
           )}
         </main>
       </div>

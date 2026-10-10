@@ -229,6 +229,26 @@ export const Topbar: React.FC<TopbarProps> = ({
           )}
         </div>
 
+        {/* Update Button */}
+        {onOpenUpdateModal && (
+          <button
+            onClick={onOpenUpdateModal}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition cursor-pointer shadow-2xs ${
+              versionInfo?.has_update
+                ? "bg-indigo-50 border-indigo-300 text-indigo-700 hover:bg-indigo-100 animate-pulse"
+                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+            }`}
+            title={versionInfo?.has_update ? "Pembaruan sPanel tersedia! Klik untuk update" : "Periksa Pembaruan sPanel"}
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${versionInfo?.has_update ? "text-indigo-600" : "text-gray-500"}`} />
+            <span className="hidden sm:inline">{versionInfo?.has_update ? "Update sPanel" : "Cek Update"}</span>
+            <span className="sm:hidden">Update</span>
+            {versionInfo?.has_update && (
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+            )}
+          </button>
+        )}
+
         {/* Primary Action Button */}
         <button
           onClick={onOpenNewProject}

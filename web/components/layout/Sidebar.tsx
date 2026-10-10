@@ -1,4 +1,3 @@
-import React from "react";
 import {
   LayoutDashboard,
   Layers,
@@ -6,6 +5,7 @@ import {
   Server,
   Activity,
   Terminal,
+  FileText,
   Settings,
   X,
 } from "lucide-react";
@@ -45,11 +45,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }[] = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "applications", label: "Applications", icon: Layers, badge: projectCount },
+    { id: "terminal", label: "Terminal", icon: Terminal },
     { id: "deployments", label: "Deployments", icon: GitCommit },
     { id: "containers", label: "Containers", icon: Server, badge: containerCount },
     { id: "github", label: "GitHub", icon: GithubIcon },
     { id: "monitoring", label: "Monitoring", icon: Activity },
-    { id: "logs", label: "Logs", icon: Terminal },
+    { id: "logs", label: "Logs", icon: FileText },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
