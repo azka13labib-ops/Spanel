@@ -294,6 +294,7 @@ export default function Dashboard() {
       <ProjectSettingsModal
         isOpen={!!activeSettingsProject}
         project={activeSettingsProject}
+        hostIp={metrics.host_ip}
         onClose={() => setActiveSettingsProject(null)}
         onSuccess={() => {
           setActiveSettingsProject(null);

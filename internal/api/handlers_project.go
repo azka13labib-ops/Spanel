@@ -2,10 +2,12 @@ package api
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -259,6 +261,63 @@ type SetDomainInput struct {
 	Domain string `json:"domain"`
 }
 
+func syncProjectNginxVhost(project *db.Project) {
+	nginxVhostDirs := []string{"/www/server/panel/vhost/nginx", "/etc/nginx/conf.d", "/etc/nginx/sites-enabled"}
+	hostPort := project.TargetPort
+	if hostPort <= 0 {
+		hostPort = 3000
+	}
+	out, err := exec.Command("docker", "port", "spanel-app-"+project.Name).Output()
+	if err == nil {
+		lines := strings.Split(string(out), "\n")
+		for _, l := range lines {
+			if strings.Contains(l, "->") {
+				parts := strings.Split(l, "->")
+				if len(parts) >= 2 {
+					addr := strings.TrimSpace(parts[1])
+					colonIdx := strings.LastIndex(addr, ":")
+					if colonIdx != -1 {
+						if p, pErr := strconv.Atoi(addr[colonIdx+1:]); pErr == nil && p > 0 {
+							hostPort = p
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for _, dir := range nginxVhostDirs {
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			domains := []string{project.MagicDomain}
+			if project.CustomDomain != "" {
+				domains = append(domains, project.CustomDomain)
+			}
+			confContent := fmt.Sprintf(`server {
+    listen 80;
+    server_name %s;
+
+    location / {
+        proxy_pass http://127.0.0.1:%d;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+`, strings.Join(domains, " "), hostPort)
+			confPath := filepath.Join(dir, fmt.Sprintf("spanel-%s.conf", project.Name))
+			if err := os.WriteFile(confPath, []byte(confContent), 0644); err == nil {
+				_ = exec.Command("/www/server/nginx/sbin/nginx", "-s", "reload").Run()
+				_ = exec.Command("nginx", "-s", "reload").Run()
+			}
+		}
+	}
+}
+
 func (s *Server) handleSetProjectDomain(c *fiber.Ctx) error {
 	projectID := c.Params("id")
 	var project db.Project
@@ -276,7 +335,7 @@ func (s *Server) handleSetProjectDomain(c *fiber.Ctx) error {
 		// regex to validate domain format (no http/https, valid hostname)
 		domainRe := regexp.MustCompile(`^(?i)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\.[a-z]{2,}$`)
 		if !domainRe.MatchString(domain) {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid domain format (do not include http:// or https://)"})
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "format domain tidak valid (jangan gunakan http:// atau https://)"})
 		}
 	}
 
@@ -285,9 +344,58 @@ func (s *Server) handleSetProjectDomain(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save domain"})
 	}
 
+	// Immediate live sync to host Nginx reverse proxy
+	syncProjectNginxVhost(&project)
+
 	return c.JSON(fiber.Map{
 		"message":       "domain updated successfully",
 		"custom_domain": project.CustomDomain,
+	})
+}
+
+func (s *Server) handleVerifyProjectDomain(c *fiber.Ctx) error {
+	projectID := c.Params("id")
+	var project db.Project
+	if err := s.db.First(&project, "id = ?", projectID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "project not found"})
+	}
+
+	domain := strings.TrimSpace(c.Query("domain"))
+	if domain == "" {
+		domain = strings.TrimSpace(project.CustomDomain)
+	}
+	if domain == "" {
+		return c.JSON(fiber.Map{
+			"configured": false,
+			"message":    "Belum ada custom domain yang diatur",
+		})
+	}
+
+	ips, err := net.LookupHost(domain)
+	pointsToServer := false
+	if err == nil {
+		for _, ip := range ips {
+			if ip == s.cfg.HostIP {
+				pointsToServer = true
+				break
+			}
+		}
+	}
+
+	status := "pending"
+	if pointsToServer {
+		status = "connected"
+	} else if len(ips) > 0 {
+		status = "misconfigured"
+	}
+
+	return c.JSON(fiber.Map{
+		"configured":       true,
+		"domain":           domain,
+		"server_ip":        s.cfg.HostIP,
+		"resolved_ips":     ips,
+		"points_to_server": pointsToServer,
+		"status":           status,
 	})
 }
 
@@ -324,6 +432,7 @@ func (s *Server) handleDeleteProject(c *fiber.Ctx) error {
 
 type UpdateProjectInput struct {
 	Branch          string  `json:"branch"`
+	CustomDomain    *string `json:"custom_domain"`
 	TargetPort      int     `json:"target_port"`
 	HealthcheckPath string  `json:"healthcheck_path"`
 }
@@ -349,10 +458,23 @@ func (s *Server) handleUpdateProject(c *fiber.Ctx) error {
 	if input.HealthcheckPath != "" {
 		project.HealthcheckPath = input.HealthcheckPath
 	}
+	if input.CustomDomain != nil {
+		domain := strings.TrimSpace(*input.CustomDomain)
+		if domain != "" {
+			domainRe := regexp.MustCompile(`^(?i)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\.[a-z]{2,}$`)
+			if !domainRe.MatchString(domain) {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "format domain tidak valid (jangan gunakan http:// atau https://)"})
+			}
+		}
+		project.CustomDomain = domain
+	}
 
 	if err := s.db.Save(&project).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update project"})
 	}
+
+	syncProjectNginxVhost(&project)
+
 	return c.JSON(project)
 }
 

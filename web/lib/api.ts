@@ -560,3 +560,20 @@ export async function quickPointDNSRecord(
     return { ok: false, error: (err as Error).message || "Koneksi gagal" };
   }
 }
+
+export async function verifyProjectDomain(projectId: string, domain?: string): Promise<{
+  configured: boolean;
+  domain?: string;
+  server_ip?: string;
+  resolved_ips?: string[];
+  points_to_server?: boolean;
+  status?: "connected" | "pending" | "misconfigured";
+  message?: string;
+}> {
+  try {
+    const q = domain ? `?domain=${encodeURIComponent(domain.trim())}` : "";
+    const res = await apiFetch(`/api/projects/${projectId}/domain-verify${q}`);
+    if (res.ok) return await res.json();
+  } catch {}
+  return { configured: false, status: "pending" };
+}

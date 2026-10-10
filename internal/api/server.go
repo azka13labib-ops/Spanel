@@ -81,6 +81,7 @@ func (s *Server) setupRoutes() {
 	apiGroup.Delete("/projects/:id", s.handleDeleteProject)
 	apiGroup.Put("/projects/:id", s.handleUpdateProject)
 	apiGroup.Post("/projects/:id/domain", s.handleSetProjectDomain)
+	apiGroup.Get("/projects/:id/domain-verify", s.handleVerifyProjectDomain)
 	apiGroup.Post("/projects/:id/deploy", s.handleTriggerDeploy)
 	apiGroup.Post("/projects/:id/rollback", s.handleTriggerRollback)
 	apiGroup.Post("/projects/:id/start", s.handleStartProject)
