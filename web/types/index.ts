@@ -1,3 +1,31 @@
+export interface DeploymentItem {
+  id: string;
+  project_id: string;
+  project_name?: string;
+  status: string; // "queued" | "building" | "healthy" | "success" | "failed" | "rolled_back"
+  commit_hash?: string;
+  commit_message?: string;
+  image_hash?: string;
+  started_at?: string;
+  finished_at?: string;
+  created_at: string;
+  duration_ms?: number;
+}
+
+export interface ContainerItem {
+  id: string;
+  name: string;
+  project_id?: string;
+  image: string;
+  status: "running" | "exited" | "paused" | "restarting" | "dead";
+  created_at?: string;
+  port: number;
+  cpu_percent?: number;
+  memory_mb?: number;
+  uptime?: string;
+  is_database?: boolean;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -9,6 +37,8 @@ export interface Project {
   healthcheck_path: string;
   status: string;
   created_at: string;
+  deployments?: DeploymentItem[];
+  env_vars?: EnvVarItem[];
 }
 
 export interface SystemMetrics {
@@ -103,7 +133,20 @@ export interface BackupInfo {
   service: string;
 }
 
-export type DashboardTab = "projects" | "marketplace" | "dns" | "ai" | "server";
+export type DashboardTab =
+  | "dashboard"
+  | "applications"
+  | "deployments"
+  | "containers"
+  | "github"
+  | "monitoring"
+  | "logs"
+  | "settings"
+  | "projects"
+  | "marketplace"
+  | "dns"
+  | "ai"
+  | "server";
 
 export interface AIConfig {
   is_configured: boolean;

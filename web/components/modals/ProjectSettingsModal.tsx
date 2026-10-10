@@ -14,9 +14,7 @@ import {
   RefreshCw,
   AlertCircle,
   CheckCircle2,
-  ExternalLink,
   HelpCircle,
-  ArrowRight,
 } from "lucide-react";
 import { deleteProject, updateProject, updateProjectDomain, verifyProjectDomain } from "@/lib/api";
 

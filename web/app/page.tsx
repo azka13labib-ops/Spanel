@@ -13,13 +13,18 @@ import {
   authEvent,
   getWebSocketUrl,
 } from "@/lib/api";
-import { Navbar } from "@/components/layout/Navbar";
-import { NavTabs } from "@/components/layout/NavTabs";
-import { ProjectGrid } from "@/components/projects/ProjectGrid";
-import { MarketplaceView } from "@/components/marketplace/MarketplaceView";
-import { DNSManagerView } from "@/components/dns/DNSManagerView";
-import { AIAssistantView } from "@/components/ai/AIAssistantView";
-import { ServerHygieneView } from "@/components/server/ServerHygieneView";
+
+import { Sidebar } from "@/components/layout/Sidebar";
+import { Topbar } from "@/components/layout/Topbar";
+import { DashboardOverviewView } from "@/components/views/DashboardOverviewView";
+import { ApplicationsView } from "@/components/views/ApplicationsView";
+import { DeploymentsView } from "@/components/views/DeploymentsView";
+import { ContainersView } from "@/components/views/ContainersView";
+import { GitHubView } from "@/components/views/GitHubView";
+import { MonitoringView } from "@/components/views/MonitoringView";
+import { LogsView } from "@/components/views/LogsView";
+import { SettingsView } from "@/components/views/SettingsView";
+
 import { DeployLogModal } from "@/components/modals/DeployLogModal";
 import { ImportProjectModal } from "@/components/modals/ImportProjectModal";
 import { EnvVarsModal } from "@/components/modals/EnvVarsModal";
@@ -29,7 +34,10 @@ import { LoginScreen } from "@/components/layout/LoginScreen";
 
 export default function Dashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<DashboardTab>("projects");
+  const [activeTab, setActiveTab] = useState<DashboardTab>("dashboard");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [metrics, setMetrics] = useState<SystemMetrics>({
     os: "linux",
@@ -38,7 +46,7 @@ export default function Dashboard() {
     alloc_mb: 24,
     sys_mb: 48,
     goroutines: 12,
-    host_ip: "127.0.0.1",
+    host_ip: "100.125.7.123",
   });
 
   // Modal States
@@ -95,12 +103,10 @@ export default function Dashboard() {
   }, [refreshRepos]);
 
   useEffect(() => {
-    let mounted = true;
-    if (mounted) {
+    const timer = setTimeout(() => {
       loadInitialData();
-    }
+    }, 0);
 
-    // Listen to unauthorized event from apiFetch
     const handleUnauthorized = () => {
       setIsAuthenticated(false);
     };
@@ -109,12 +115,12 @@ export default function Dashboard() {
 
     const interval = setInterval(() => {
       fetchSystemMetrics().then((mets) => {
-        if (mets && mounted) setMetrics(mets);
+        if (mets) setMetrics(mets);
       });
     }, 5000);
 
     return () => {
-      mounted = false;
+      clearTimeout(timer);
       clearInterval(interval);
       authEvent?.removeEventListener("unauthorized", handleUnauthorized);
     };
@@ -126,23 +132,23 @@ export default function Dashboard() {
     setActiveLogProjectObj(project);
     setLogModalType("build");
     setLogModalOpen(true);
-    setDeployLogs([`🚀 Menghubungi worker backend untuk deploy ${project.name}...`]);
+    setDeployLogs([`[BUILD] Contacting backend orchestrator to deploy ${project.name}...`]);
 
     const res = await postDeploy(project.id);
     if (!res.ok) {
-      setDeployLogs((prev) => [...prev, `❌ Error: ${res.error || "Gagal memicu deployment"}`]);
-      showToast(`❌ Deploy failed for ${project.name}`);
+      setDeployLogs((prev) => [...prev, `[ERROR] Failed to trigger deploy: ${res.error || "Unknown error"}`]);
+      showToast(`Deploy failed for ${project.name}`);
       return;
     }
 
-    showToast(`🚀 Deployment started for ${project.name}`);
+    showToast(`Deployment started for ${project.name}`);
 
     const deploymentId = res.deployment_id;
     if (deploymentId) {
       setDeployLogs((prev) => [
         ...prev,
-        `✓ Deployment ID: ${deploymentId.slice(0, 8)} terdaftar di Queue.`,
-        `[Log Stream] Menghubungkan WebSocket...`,
+        `[SUCCESS] Deployment ID ${deploymentId.slice(0, 8)} queued.`,
+        `[WS] Connecting WebSocket log stream...`,
       ]);
 
       const wsUrl = getWebSocketUrl(`/ws/logs/${deploymentId}`);
@@ -167,30 +173,29 @@ export default function Dashboard() {
     setActiveLogProjectObj(project);
     setLogModalType("build");
     setLogModalOpen(true);
-    setDeployLogs([`🔄 Memicu rollback untuk ${project.name}...`]);
+    setDeployLogs([`[ROLLBACK] Triggering rollback for ${project.name}...`]);
 
     const res = await postRollback(project.id);
     if (!res.ok) {
-      setDeployLogs((prev) => [...prev, `❌ Error: ${res.error || "Gagal memicu rollback"}`]);
-      showToast(`❌ Rollback failed: ${res.error}`);
+      setDeployLogs((prev) => [...prev, `[ERROR] Rollback failed: ${res.error}`]);
+      showToast(`Rollback failed: ${res.error}`);
       return;
     }
 
-    showToast(`✓ Rollback triggered for ${project.name}`);
-
+    showToast(`Rollback triggered for ${project.name}`);
     setDeployLogs((prev) => [
       ...prev,
-      `✓ Rollback terdaftar (Deployment: ${res.deployment_id?.slice(0, 8)})`,
-      `Target Image: ${res.target_image_hash || "cached version"}`,
+      `[SUCCESS] Rollback queued (Deployment: ${res.deployment_id?.slice(0, 8)})`,
+      `[INFO] Target image: ${res.target_image_hash || "cached version"}`,
     ]);
   };
 
-  const handleContainerAction = async (project: Project, action: 'start'|'stop'|'restart') => {
+  const handleContainerAction = async (project: Project, action: "start" | "stop" | "restart") => {
     const res = await projectAction(project.id, action);
     if (!res.ok) {
-      showToast(`❌ Failed to ${action} container: ${res.error}`);
+      showToast(`Failed to ${action} container: ${res.error}`);
     } else {
-      showToast(`✓ Container ${action}ed successfully`);
+      showToast(`Container ${action}ed successfully`);
       loadInitialData();
     }
   };
@@ -200,7 +205,7 @@ export default function Dashboard() {
     setActiveLogProjectObj(project);
     setLogModalType("runtime");
     setLogModalOpen(true);
-    setDeployLogs([`[Logs] Connecting to runtime logs for ${project.name}...`]);
+    setDeployLogs([`[RUNTIME] Connecting to live stdout logs for ${project.name}...`]);
 
     const wsUrl = getWebSocketUrl(`/ws/runtime-logs/${project.id}`);
     const ws = new WebSocket(wsUrl);
@@ -210,34 +215,40 @@ export default function Dashboard() {
         const lines = event.data.split("\n");
         setDeployLogs((prev) => {
           const newLogs = [...prev, ...lines.filter((l: string) => l.trim().length > 0)];
-          if (newLogs.length > 300) return newLogs.slice(newLogs.length - 300);
+          if (newLogs.length > 400) return newLogs.slice(newLogs.length - 400);
           return newLogs;
         });
       }
     };
-    
+
     ws.onerror = () => {
-      setDeployLogs((prev) => [...prev, `[WS] Runtime log error or standby...`]);
+      setDeployLogs((prev) => [...prev, `[WS] Runtime log standby (container idle).`]);
     };
   };
 
   const handleProjectCreated = (newProject: Project, shouldDeploy = false) => {
     setProjects((prev) => [newProject, ...prev]);
-    showToast(`🎉 Project ${newProject.name} created!`);
+    showToast(`Project ${newProject.name} created successfully!`);
     if (shouldDeploy) {
       handleDeploy(newProject);
     }
   };
 
   if (!isAuthenticated) {
-    return <LoginScreen onLogin={() => {
-      setIsAuthenticated(true);
-      loadInitialData();
-    }} />;
+    return (
+      <LoginScreen
+        onLogin={() => {
+          setIsAuthenticated(true);
+          loadInitialData();
+        }}
+      />
+    );
   }
 
+  const containerCount = projects.filter((p) => p.status === "running").length;
+
   return (
-    <div className="min-h-screen text-gray-900 bg-gray-50 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="min-h-screen bg-[#F7F8FC] text-[#111827] flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white px-4 py-2.5 rounded-lg shadow-xl text-xs font-medium flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-150 border border-gray-800">
@@ -245,40 +256,108 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Top Navbar */}
-      <Navbar
+      {/* Left Application Sidebar */}
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          setSearchQuery("");
+        }}
+        projectCount={projects.length}
+        containerCount={containerCount}
         metrics={metrics}
         githubStatus={githubStatus}
-        onOpenNewProject={() => setIsImportModalOpen(true)}
+        isOpenMobile={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-5 sm:p-7 space-y-6">
-        {/* Navigation Tabs */}
-        <NavTabs activeTab={activeTab} onTabChange={setActiveTab} projectCount={projects.length} />
+      {/* Main Content Area */}
+      <div className="lg:pl-64 flex flex-col min-h-screen">
+        {/* Topbar */}
+        <Topbar
+          metrics={metrics}
+          onOpenNewProject={() => setIsImportModalOpen(true)}
+          onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onLogout={() => {
+            localStorage.removeItem("spanel_token");
+            setIsAuthenticated(false);
+          }}
+        />
 
-        {/* Tab Views */}
-        {activeTab === "projects" && (
-          <ProjectGrid
-            projects={projects}
-            onDeploy={handleDeploy}
-            onRollback={handleRollback}
-            onViewLogs={handleViewLogs}
-            onOpenEnvVars={(proj) => setActiveEnvProject(proj)}
-            onOpenTerminal={(proj) => setTerminalProject(proj)}
-            onOpenSettings={(proj) => setActiveSettingsProject(proj)}
-            onContainerAction={handleContainerAction}
-            onOpenNewProject={() => setIsImportModalOpen(true)}
-          />
-        )}
+        {/* Page Body */}
+        <main className="flex-1 p-4 sm:p-7 max-w-7xl w-full mx-auto">
+          {activeTab === "dashboard" && (
+            <DashboardOverviewView
+              projects={projects}
+              metrics={metrics}
+              onNavigate={(tab) => setActiveTab(tab)}
+              onDeploy={handleDeploy}
+              onViewLogs={handleViewLogs}
+              onOpenTerminal={(proj) => setTerminalProject(proj)}
+              onOpenSettings={(proj) => setActiveSettingsProject(proj)}
+              onOpenNewProject={() => setIsImportModalOpen(true)}
+            />
+          )}
 
-        {activeTab === "marketplace" && <MarketplaceView projects={projects} />}
+          {(activeTab === "applications" || activeTab === "projects") && (
+            <ApplicationsView
+              projects={projects}
+              searchQuery={searchQuery}
+              onDeploy={handleDeploy}
+              onRollback={handleRollback}
+              onViewLogs={handleViewLogs}
+              onOpenEnvVars={(proj) => setActiveEnvProject(proj)}
+              onOpenTerminal={(proj) => setTerminalProject(proj)}
+              onOpenSettings={(proj) => setActiveSettingsProject(proj)}
+              onContainerAction={handleContainerAction}
+              onOpenNewProject={() => setIsImportModalOpen(true)}
+            />
+          )}
 
-        {activeTab === "dns" && <DNSManagerView hostIp={metrics.host_ip} />}
+          {activeTab === "deployments" && (
+            <DeploymentsView
+              projects={projects}
+              onDeploy={handleDeploy}
+              onViewLogs={handleViewLogs}
+              onRollback={handleRollback}
+            />
+          )}
 
-        {activeTab === "ai" && <AIAssistantView />}
+          {activeTab === "containers" && (
+            <ContainersView
+              projects={projects}
+              onContainerAction={handleContainerAction}
+              onOpenTerminal={(proj) => setTerminalProject(proj)}
+              onViewLogs={handleViewLogs}
+            />
+          )}
 
-        {activeTab === "server" && <ServerHygieneView />}
-      </main>
+          {activeTab === "github" && (
+            <GitHubView
+              githubStatus={githubStatus}
+              repos={githubRepos}
+              loadingRepos={loadingRepos}
+              onRefreshRepos={refreshRepos}
+              onDeployRepo={() => setIsImportModalOpen(true)}
+              onStatusChange={(st) => setGithubStatus(st)}
+            />
+          )}
+
+          {activeTab === "monitoring" && <MonitoringView metrics={metrics} />}
+
+          {activeTab === "logs" && <LogsView projects={projects} />}
+
+          {(activeTab === "settings" ||
+            activeTab === "marketplace" ||
+            activeTab === "dns" ||
+            activeTab === "ai" ||
+            activeTab === "server") && (
+            <SettingsView metrics={metrics} projects={projects} />
+          )}
+        </main>
+      </div>
 
       {/* Live Deploy Log Modal */}
       <DeployLogModal
@@ -299,7 +378,7 @@ export default function Dashboard() {
         onSuccess={() => {
           setActiveSettingsProject(null);
           loadInitialData();
-          showToast("✓ Settings updated successfully");
+          showToast("Settings updated successfully");
         }}
       />
 
@@ -315,7 +394,7 @@ export default function Dashboard() {
       <WebTerminalModal
         isOpen={!!terminalProject}
         onClose={() => setTerminalProject(null)}
-        title={`Terminal — ${terminalProject?.name || ""}`}
+        title={`Terminal: ${terminalProject?.name || ""}`}
         containerId={`spanel-app-${terminalProject?.name || ""}`}
       />
 
