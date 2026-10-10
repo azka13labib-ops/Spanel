@@ -4,8 +4,6 @@ import {
   Server,
   Activity,
   Cpu,
-  CheckCircle2,
-  HardDrive,
   ArrowUpRight,
   TrendingUp,
   MoreVertical,
@@ -47,6 +45,9 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
   const runningCount = projects.filter((p) => p.status === "running").length;
   const cpuPercent = metrics.host_cpu_percent !== undefined ? Math.round(metrics.host_cpu_percent) : 12;
   const ramPercent = metrics.host_ram_percent !== undefined ? Math.round(metrics.host_ram_percent) : 28;
+  const usedRamGb = metrics.host_used_ram_mb ? (metrics.host_used_ram_mb / 1024).toFixed(1) : null;
+  const totalRamGb = metrics.host_total_ram_mb ? (metrics.host_total_ram_mb / 1024).toFixed(1) : null;
+  const freeRamGb = metrics.host_free_ram_mb ? (metrics.host_free_ram_mb / 1024).toFixed(1) : null;
 
   // Flatten all deployments from all projects to get recent deployments
   const allDeployments: {
@@ -114,8 +115,8 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
         </p>
       </div>
 
-      {/* 6 Overview Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+      {/* 4 Overview Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Applications */}
         <div className="bg-white border border-gray-200/90 rounded-xl p-4 shadow-2xs">
           <div className="flex items-center justify-between text-gray-600 text-xs font-medium">
@@ -129,6 +130,9 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
               {runningCount} active
             </span>
           </div>
+          <p className="text-[11px] text-gray-500 mt-1">
+            {projects.length === 0 ? "No apps deployed" : `${projects.length - runningCount} stopped`}
+          </p>
         </div>
 
         {/* Running Containers */}
@@ -144,19 +148,8 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
               {runningCount > 0 ? "Workload online" : "Standby"}
             </span>
           </div>
-        </div>
-
-        {/* System Status */}
-        <div className="bg-white border border-gray-200/90 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-gray-600 text-xs font-medium">
-            <span>System Status</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-gray-900">Operational</span>
-          </div>
-          <p className="text-[11px] text-gray-500 mt-0.5 font-mono">
-            Load 1m: {metrics.load_avg_1 ? metrics.load_avg_1.toFixed(2) : "0.15"}
+          <p className="text-[11px] text-gray-500 mt-1">
+            Docker engine ready
           </p>
         </div>
 
@@ -179,18 +172,23 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
               style={{ width: `${Math.min(100, Math.max(5, cpuPercent))}%` }}
             />
           </div>
+          <p className="text-[11px] text-gray-500 mt-1.5 font-mono">
+            Load avg (1m): {metrics.load_avg_1 ? metrics.load_avg_1.toFixed(2) : "0.15"}
+          </p>
         </div>
 
-        {/* Memory Usage */}
+        {/* Memory (RAM) */}
         <div className="bg-white border border-gray-200/90 rounded-xl p-4 shadow-2xs">
           <div className="flex items-center justify-between text-gray-600 text-xs font-medium">
-            <span>Memory Usage</span>
+            <span>Memory (RAM)</span>
             <Activity className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-gray-900">{ramPercent}%</span>
+            <span className="text-2xl font-bold text-gray-900">
+              {usedRamGb && totalRamGb ? `${usedRamGb} / ${totalRamGb} GB` : `${ramPercent}%`}
+            </span>
             <span className="text-[10px] text-gray-500 font-mono">
-              {metrics.host_used_ram_mb ? `${(metrics.host_used_ram_mb / 1024).toFixed(1)}GB` : "Normal"}
+              {ramPercent}% used
             </span>
           </div>
           {/* Mini Sparkline */}
@@ -200,22 +198,8 @@ export const DashboardOverviewView: React.FC<DashboardOverviewViewProps> = ({
               style={{ width: `${Math.min(100, Math.max(5, ramPercent))}%` }}
             />
           </div>
-        </div>
-
-        {/* Host Memory Total */}
-        <div className="bg-white border border-gray-200/90 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-gray-600 text-xs font-medium">
-            <span>Host Capacity</span>
-            <HardDrive className="w-4 h-4 text-sky-500" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-gray-900">
-              {metrics.host_total_ram_mb ? `${(metrics.host_total_ram_mb / 1024).toFixed(1)} GB` : "2.0 GB"}
-            </span>
-            <span className="text-[10px] text-gray-500 font-mono">Total RAM</span>
-          </div>
-          <p className="text-[11px] text-gray-500 mt-1">
-            {metrics.host_free_ram_mb ? `${(metrics.host_free_ram_mb / 1024).toFixed(1)} GB available` : "Healthy"}
+          <p className="text-[11px] text-gray-500 mt-1.5">
+            {freeRamGb ? `${freeRamGb} GB available` : "Healthy"}
           </p>
         </div>
       </div>
