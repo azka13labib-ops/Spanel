@@ -201,3 +201,14 @@ export interface CreateDNSRecordInput {
   priority?: number;
 }
 
+export interface VersionInfo {
+  current_version: string;
+  latest_version: string;
+  has_update: boolean;
+  release_name?: string;
+  release_notes?: string;
+  release_url?: string;
+  published_at?: string;
+  checked_at?: string;
+}
+

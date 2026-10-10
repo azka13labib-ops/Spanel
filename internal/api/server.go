@@ -19,6 +19,7 @@ import (
 	"spanel/internal/config"
 	"spanel/internal/queue"
 	"spanel/internal/service"
+	"spanel/internal/updater"
 )
 
 type Server struct {
@@ -29,6 +30,7 @@ type Server struct {
 	embeddedFS fs.FS
 	dbManager  *service.DatabaseManager
 	aiAgent    *ai.AIAgent
+	updater    *updater.Updater
 }
 
 func NewServer(database *gorm.DB, q *queue.Queue, cfg *config.Config, embeddedFS fs.FS, aiAgent *ai.AIAgent) *Server {
@@ -59,6 +61,7 @@ func NewServer(database *gorm.DB, q *queue.Queue, cfg *config.Config, embeddedFS
 		embeddedFS: embeddedFS,
 		dbManager:  service.NewDatabaseManager(database, cfg),
 		aiAgent:    aiAgent,
+		updater:    updater.NewUpdater("azka13labib-ops", "Spanel"),
 	}
 
 	s.setupRoutes()
@@ -73,6 +76,9 @@ func (s *Server) setupRoutes() {
 	apiGroup.Get("/health", s.handleHealth)
 	apiGroup.Post("/setup", s.handleSetup)
 	apiGroup.Get("/system/metrics", s.handleSystemMetrics)
+	apiGroup.Get("/system/version", s.handleGetVersion)
+	apiGroup.Post("/system/check-update", s.handleCheckUpdate)
+	apiGroup.Post("/system/self-update", s.handleSelfUpdate)
 
 	// Projects
 	apiGroup.Get("/projects", s.handleListProjects)

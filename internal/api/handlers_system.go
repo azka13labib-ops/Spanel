@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"spanel/internal/config"
+
 	fiber "github.com/gofiber/fiber/v2"
 )
 
@@ -15,7 +17,7 @@ func (s *Server) handleHealth(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"status":    "healthy",
 		"service":   "spanel-server",
-		"version":   "1.0.0",
+		"version":   config.Version,
 		"timestamp": time.Now().Format(time.RFC3339),
 	})
 }
@@ -96,5 +98,40 @@ func (s *Server) handleSystemMetrics(c *fiber.Ctx) error {
 		"host_ram_percent":  ramPct,
 		"host_cpu_percent":  cpuPct,
 		"load_avg_1":        load1,
+	})
+}
+
+// handleGetVersion returns the current and latest version info
+func (s *Server) handleGetVersion(c *fiber.Ctx) error {
+	info, err := s.updater.CheckUpdate(false)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.JSON(info)
+}
+
+// handleCheckUpdate forces an immediate check against GitHub Releases
+func (s *Server) handleCheckUpdate(c *fiber.Ctx) error {
+	info, err := s.updater.CheckUpdate(true)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.JSON(info)
+}
+
+// handleSelfUpdate initiates the 1-click self-update process
+func (s *Server) handleSelfUpdate(c *fiber.Ctx) error {
+	if err := s.updater.PerformSelfUpdate(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.JSON(fiber.Map{
+		"ok":      true,
+		"message": "Update downloaded and verified. Restarting sPanel service...",
 	})
 }

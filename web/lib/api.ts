@@ -13,6 +13,7 @@ import {
   CloudflareZone,
   DNSRecordItem,
   CreateDNSRecordInput,
+  VersionInfo,
 } from "@/types";
 
 export const authEvent = typeof window !== 'undefined' ? new EventTarget() : null;
@@ -576,4 +577,35 @@ export async function verifyProjectDomain(projectId: string, domain?: string): P
     if (res.ok) return await res.json();
   } catch {}
   return { configured: false, status: "pending" };
+}
+
+export async function fetchVersionInfo(): Promise<VersionInfo | null> {
+  try {
+    const res = await apiFetch("/api/system/version");
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+  return null;
+}
+
+export async function checkForUpdates(): Promise<VersionInfo | null> {
+  try {
+    const res = await apiFetch("/api/system/check-update", { method: "POST" });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+  return null;
+}
+
+export async function triggerSelfUpdate(): Promise<{ ok: boolean; message?: string; error?: string }> {
+  try {
+    const res = await apiFetch("/api/system/self-update", { method: "POST" });
+    const data = await res.json();
+    if (res.ok) return { ok: true, message: data.message };
+    return { ok: false, error: data.error || "Gagal melakukan pembaruan otomatis" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || "Koneksi terputus saat proses pembaruan" };
+  }
 }

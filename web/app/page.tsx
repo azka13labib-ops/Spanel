@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Project, SystemMetrics, DashboardTab, GitHubRepo, GitHubStatus } from "@/types";
+import { Project, SystemMetrics, DashboardTab, GitHubRepo, GitHubStatus, VersionInfo } from "@/types";
 import {
   fetchProjects,
   fetchSystemMetrics,
   fetchGitHubStatus,
   fetchGitHubRepos,
+  fetchVersionInfo,
   postDeploy,
   postRollback,
   projectAction,
@@ -30,6 +31,7 @@ import { ImportProjectModal } from "@/components/modals/ImportProjectModal";
 import { EnvVarsModal } from "@/components/modals/EnvVarsModal";
 import { WebTerminalModal } from "@/components/modals/WebTerminalModal";
 import { ProjectSettingsModal } from "@/components/modals/ProjectSettingsModal";
+import { UpdateModal } from "@/components/modals/UpdateModal";
 import { LoginScreen } from "@/components/layout/LoginScreen";
 
 export default function Dashboard() {
@@ -67,6 +69,10 @@ export default function Dashboard() {
   const [githubRepos, setGithubRepos] = useState<GitHubRepo[]>([]);
   const [loadingRepos, setLoadingRepos] = useState<boolean>(false);
 
+  // Version & Updates state
+  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState<boolean>(false);
+
   // Toast notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -97,6 +103,10 @@ export default function Dashboard() {
       if (ghStat && ghStat.connected) {
         refreshRepos();
       }
+
+      fetchVersionInfo().then((ver) => {
+        if (ver) setVersionInfo(ver);
+      });
     } catch {
       // API error or unauthorized
     }
@@ -269,6 +279,8 @@ export default function Dashboard() {
         githubStatus={githubStatus}
         isOpenMobile={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
+        versionInfo={versionInfo}
+        onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -280,6 +292,8 @@ export default function Dashboard() {
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          versionInfo={versionInfo}
+          onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
           onLogout={() => {
             localStorage.removeItem("spanel_token");
             setIsAuthenticated(false);
@@ -409,6 +423,19 @@ export default function Dashboard() {
         githubRepos={githubRepos}
         loadingRepos={loadingRepos}
         onRefreshRepos={refreshRepos}
+      />
+
+      {/* System Update Modal */}
+      <UpdateModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
+        versionInfo={versionInfo}
+        onVersionUpdated={(info) => {
+          setVersionInfo(info);
+          if (info.has_update) {
+            showToast(`Versi baru sPanel tersedia: ${info.latest_version}`);
+          }
+        }}
       />
     </div>
   );

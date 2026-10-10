@@ -11,8 +11,9 @@ import {
   ShieldCheck,
   LogOut,
   ChevronDown,
+  Sparkles,
 } from "lucide-react";
-import { SystemMetrics } from "@/types";
+import { SystemMetrics, VersionInfo } from "@/types";
 
 interface TopbarProps {
   metrics: SystemMetrics;
@@ -21,6 +22,8 @@ interface TopbarProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onLogout?: () => void;
+  versionInfo?: VersionInfo | null;
+  onOpenUpdateModal?: () => void;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -30,6 +33,8 @@ export const Topbar: React.FC<TopbarProps> = ({
   searchQuery,
   onSearchChange,
   onLogout,
+  versionInfo,
+  onOpenUpdateModal,
 }) => {
   const [copiedIP, setCopiedIP] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -77,6 +82,19 @@ export const Topbar: React.FC<TopbarProps> = ({
 
       {/* Right: Actions, IP, Notifications & Profile */}
       <div className="flex items-center gap-3">
+        {/* Update Notification Pill */}
+        {versionInfo?.has_update && onOpenUpdateModal && (
+          <button
+            onClick={onOpenUpdateModal}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 transition text-xs font-semibold cursor-pointer animate-pulse"
+            title={`Pembaruan sPanel tersedia: ${versionInfo.latest_version}`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+            <span className="hidden sm:inline">Update</span>
+            <span>{versionInfo.latest_version}</span>
+          </button>
+        )}
+
         {/* Host IP Indicator */}
         {metrics.host_ip && (
           <button
@@ -102,16 +120,37 @@ export const Topbar: React.FC<TopbarProps> = ({
             title="System notifications"
           >
             <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-600" />
+            {versionInfo?.has_update ? (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-600 animate-ping" />
+            ) : (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500" />
+            )}
           </button>
 
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-xl p-3 z-50 text-xs space-y-2 animate-in fade-in">
               <div className="flex items-center justify-between pb-2 border-b border-gray-100">
                 <span className="font-semibold text-gray-900">System Activity</span>
-                <span className="text-[10px] text-gray-400">All services healthy</span>
+                <span className="text-[10px] text-gray-400">
+                  {versionInfo?.has_update ? "1 update available" : "All services healthy"}
+                </span>
               </div>
               <div className="space-y-1.5 text-gray-600">
+                {versionInfo?.has_update && onOpenUpdateModal && (
+                  <div
+                    onClick={() => {
+                      setShowNotifications(false);
+                      onOpenUpdateModal();
+                    }}
+                    className="p-2 rounded-lg bg-indigo-50/80 border border-indigo-200 flex items-start gap-2 cursor-pointer hover:bg-indigo-100/80 transition"
+                  >
+                    <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-indigo-950">Update Tersedia ({versionInfo.latest_version})</p>
+                      <p className="text-[11px] text-indigo-700">Klik untuk melihat catatan rilis dan perbarui.</p>
+                    </div>
+                  </div>
+                )}
                 <div className="p-2 rounded-lg bg-gray-50 flex items-start gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
@@ -153,6 +192,25 @@ export const Topbar: React.FC<TopbarProps> = ({
                 <p className="font-medium text-gray-900">Signed in as admin</p>
                 <p className="text-[10px] text-gray-400 font-mono">100.125.7.123</p>
               </div>
+
+              {onOpenUpdateModal && (
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    onOpenUpdateModal();
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 rounded-md transition flex items-center justify-between cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Cek Pembaruan</span>
+                  </span>
+                  {versionInfo?.has_update && (
+                    <span className="w-2 h-2 rounded-full bg-indigo-600" />
+                  )}
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   setShowUserMenu(false);

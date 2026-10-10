@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { GithubIcon } from "@/components/icons/GithubIcon";
-import { DashboardTab, SystemMetrics, GitHubStatus } from "@/types";
+import { DashboardTab, SystemMetrics, GitHubStatus, VersionInfo } from "@/types";
 
 interface SidebarProps {
   activeTab: DashboardTab;
@@ -21,6 +21,8 @@ interface SidebarProps {
   githubStatus?: GitHubStatus | null;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
+  versionInfo?: VersionInfo | null;
+  onOpenUpdateModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -32,6 +34,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   githubStatus,
   isOpenMobile = false,
   onCloseMobile,
+  versionInfo,
+  onOpenUpdateModal,
 }) => {
   const navItems: {
     id: DashboardTab;
@@ -86,9 +90,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-base text-gray-900 tracking-tight">sPanel</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  PaaS
-                </span>
+                <button
+                  onClick={onOpenUpdateModal}
+                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border transition cursor-pointer flex items-center gap-1 ${
+                    versionInfo?.has_update
+                      ? "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 animate-pulse"
+                      : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                  }`}
+                  title={versionInfo?.has_update ? "Klik untuk melihat update terbaru" : `sPanel ${versionInfo?.current_version || "v1.0.0"}`}
+                >
+                  <span>{versionInfo?.current_version || "v1.0.0"}</span>
+                  {versionInfo?.has_update && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                  )}
+                </button>
               </div>
               <span className="text-[11px] text-gray-400">Zero-Config Hosting</span>
             </div>
