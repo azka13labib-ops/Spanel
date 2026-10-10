@@ -289,6 +289,10 @@ export default function Dashboard() {
         {/* Topbar */}
         <Topbar
           metrics={metrics}
+          projects={projects}
+          onNavigate={(tab) => setActiveTab(tab)}
+          onContainerAction={handleContainerAction}
+          onViewLogs={handleViewLogs}
           onOpenNewProject={() => setIsImportModalOpen(true)}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
           searchQuery={searchQuery}

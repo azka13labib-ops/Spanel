@@ -102,7 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 >
                   <span>{versionInfo?.current_version || "v1.0.0"}</span>
                   {versionInfo?.has_update && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                   )}
                 </button>
               </div>
