@@ -15,6 +15,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { SystemMetrics, VersionInfo, Project, DashboardTab } from "@/types";
+import { logout } from "@/lib/api";
 
 interface TopbarProps {
   metrics: SystemMetrics;
@@ -328,11 +329,12 @@ export const Topbar: React.FC<TopbarProps> = ({
               )}
 
               <button
-                onClick={() => {
+                onClick={async () => {
                   setShowUserMenu(false);
-                  if (onLogout) onLogout();
-                  else {
-                    localStorage.removeItem("spanel_token");
+                  if (onLogout) {
+                    onLogout();
+                  } else {
+                    await logout();
                     window.location.reload();
                   }
                 }}

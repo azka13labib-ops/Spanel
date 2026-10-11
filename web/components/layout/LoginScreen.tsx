@@ -22,14 +22,11 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'same-origin',
           body: JSON.stringify({ password: token })
         });
 
         if (setupRes.ok) {
-          const data = await setupRes.json().catch(() => ({}));
-          if (data.token) {
-            localStorage.setItem('spanel_token', data.token);
-          }
           onLogin();
           return;
         } else {
