@@ -49,8 +49,23 @@ func randomString(length int) string {
 	return hex.EncodeToString(bytes)[:length]
 }
 
+type ProvisionDatabaseOptions struct {
+	ServiceName     string `json:"service_name"`
+	CustomName      string `json:"custom_name"`
+	DatabaseName    string `json:"database_name"`
+	Username        string `json:"username"`
+	Password        string `json:"password"`
+	ExposeHostPort  bool   `json:"expose_host_port"`
+	HostPort        int    `json:"host_port"`
+	AttachProjectID string `json:"attach_project_id"`
+}
+
 func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName string) (*db.MarketplaceService, *DBCredentials, error) {
-	serviceName = strings.ToLower(strings.TrimSpace(serviceName))
+	return m.ProvisionDatabaseWithOptions(ctx, ProvisionDatabaseOptions{ServiceName: serviceName})
+}
+
+func (m *DatabaseManager) ProvisionDatabaseWithOptions(ctx context.Context, opts ProvisionDatabaseOptions) (*db.MarketplaceService, *DBCredentials, error) {
+	serviceName := strings.ToLower(strings.TrimSpace(opts.ServiceName))
 
 	_ = exec.CommandContext(ctx, "docker", "network", "create", "spanel-net").Run()
 
@@ -58,111 +73,227 @@ func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName str
 	var containerName string
 	var internalPort int
 	var volumeHostPath string
+	var engineVersion string
+	var displayName string
+
+	// Clean custom name if provided
+	if opts.CustomName != "" {
+		clean := strings.ToLower(strings.TrimSpace(opts.CustomName))
+		var sb strings.Builder
+		for _, r := range clean {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+				sb.WriteRune(r)
+			} else {
+				sb.WriteRune('-')
+			}
+		}
+		cleanStr := strings.Trim(sb.String(), "-_")
+		if cleanStr != "" {
+			displayName = opts.CustomName
+			if !strings.HasPrefix(cleanStr, "spanel-") {
+				containerName = "spanel-" + cleanStr
+			} else {
+				containerName = cleanStr
+			}
+		}
+	}
 
 	switch serviceName {
 	case "postgresql", "postgres":
 		serviceName = "postgresql"
-		containerName = "spanel-postgres"
+		engineVersion = "16-alpine"
+		if displayName == "" {
+			displayName = "PostgreSQL 16"
+		}
+		if containerName == "" {
+			containerName = "spanel-postgres"
+		}
 		internalPort = 5432
-		pass := randomString(24)
+
+		dbUser := "spanel"
+		if strings.TrimSpace(opts.Username) != "" {
+			dbUser = strings.TrimSpace(opts.Username)
+		}
+		dbPass := randomString(24)
+		if strings.TrimSpace(opts.Password) != "" {
+			dbPass = strings.TrimSpace(opts.Password)
+		}
+		dbName := "spanel_db"
+		if strings.TrimSpace(opts.DatabaseName) != "" {
+			dbName = strings.TrimSpace(opts.DatabaseName)
+		}
+
+		hostPort := opts.HostPort
+		if hostPort <= 0 {
+			hostPort = 5432
+		}
+
+		externalURI := "Port not exposed externally (Accessible within spanel-net network)"
+		if opts.ExposeHostPort {
+			externalURI = fmt.Sprintf("postgres://%s:%s@localhost:%d/%s?sslmode=disable", dbUser, dbPass, hostPort, dbName)
+		}
 
 		creds = DBCredentials{
 			ServiceName:  "postgresql",
-			Username:     "spanel",
-			Password:     pass,
-			DatabaseName: "spanel_db",
+			Username:     dbUser,
+			Password:     dbPass,
+			DatabaseName: dbName,
 			Port:         5432,
 			Host:         containerName,
-			InternalURI:  fmt.Sprintf("postgres://spanel:%s@%s:5432/spanel_db?sslmode=disable", pass, containerName),
-			ExternalURI:  fmt.Sprintf("postgres://spanel:%s@localhost:5432/spanel_db?sslmode=disable", pass),
+			InternalURI:  fmt.Sprintf("postgres://%s:%s@%s:5432/%s?sslmode=disable", dbUser, dbPass, containerName, dbName),
+			ExternalURI:  externalURI,
 		}
 
-		volumeName := "spanel-vol-postgres"
+		volumeName := fmt.Sprintf("spanel-vol-%s", containerName)
 		_ = exec.CommandContext(ctx, "docker", "volume", "create", volumeName).Run()
 		_ = exec.CommandContext(ctx, "docker", "rm", "-f", containerName).Run()
 
-		cmd := exec.CommandContext(ctx, "docker", "run", "-d",
+		runArgs := []string{
+			"run", "-d",
 			"--name", containerName,
 			"--network", "spanel-net",
 			"--restart", "unless-stopped",
 			"-v", fmt.Sprintf("%s:/var/lib/postgresql/data", volumeName),
-			"-e", "POSTGRES_USER=spanel",
-			"-e", fmt.Sprintf("POSTGRES_PASSWORD=%s", pass),
-			"-e", "POSTGRES_DB=spanel_db",
-			"-p", "127.0.0.1:5432:5432",
-			"postgres:16-alpine",
-		)
+			"-e", fmt.Sprintf("POSTGRES_USER=%s", dbUser),
+			"-e", fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPass),
+			"-e", fmt.Sprintf("POSTGRES_DB=%s", dbName),
+		}
+		if opts.ExposeHostPort {
+			runArgs = append(runArgs, "-p", fmt.Sprintf("127.0.0.1:%d:5432", hostPort))
+		}
+		runArgs = append(runArgs, "postgres:16-alpine")
+
+		cmd := exec.CommandContext(ctx, "docker", runArgs...)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return nil, nil, fmt.Errorf("failed to run postgres container: %w (%s)", err, string(out))
 		}
 		volumeHostPath = volumeName
 
 	case "mysql":
-		containerName = "spanel-mysql"
+		serviceName = "mysql"
+		engineVersion = "8.0"
+		if displayName == "" {
+			displayName = "MySQL 8.0"
+		}
+		if containerName == "" {
+			containerName = "spanel-mysql"
+		}
 		internalPort = 3306
-		pass := randomString(24)
+
+		dbUser := "spanel"
+		if strings.TrimSpace(opts.Username) != "" {
+			dbUser = strings.TrimSpace(opts.Username)
+		}
+		dbPass := randomString(24)
+		if strings.TrimSpace(opts.Password) != "" {
+			dbPass = strings.TrimSpace(opts.Password)
+		}
+		dbName := "spanel_db"
+		if strings.TrimSpace(opts.DatabaseName) != "" {
+			dbName = strings.TrimSpace(opts.DatabaseName)
+		}
+
+		hostPort := opts.HostPort
+		if hostPort <= 0 {
+			hostPort = 3306
+		}
+
+		externalURI := "Port not exposed externally (Accessible within spanel-net network)"
+		if opts.ExposeHostPort {
+			externalURI = fmt.Sprintf("mysql://%s:%s@tcp(localhost:%d)/%s", dbUser, dbPass, hostPort, dbName)
+		}
 
 		creds = DBCredentials{
 			ServiceName:  "mysql",
-			Username:     "spanel",
-			Password:     pass,
-			DatabaseName: "spanel_db",
+			Username:     dbUser,
+			Password:     dbPass,
+			DatabaseName: dbName,
 			Port:         3306,
 			Host:         containerName,
-			InternalURI:  fmt.Sprintf("mysql://spanel:%s@tcp(%s:3306)/spanel_db", pass, containerName),
-			ExternalURI:  fmt.Sprintf("mysql://spanel:%s@tcp(localhost:3306)/spanel_db", pass),
+			InternalURI:  fmt.Sprintf("mysql://%s:%s@tcp(%s:3306)/%s", dbUser, dbPass, containerName, dbName),
+			ExternalURI:  externalURI,
 		}
 
-		volumeName := "spanel-vol-mysql"
+		volumeName := fmt.Sprintf("spanel-vol-%s", containerName)
 		_ = exec.CommandContext(ctx, "docker", "volume", "create", volumeName).Run()
 		_ = exec.CommandContext(ctx, "docker", "rm", "-f", containerName).Run()
 
-		cmd := exec.CommandContext(ctx, "docker", "run", "-d",
+		runArgs := []string{
+			"run", "-d",
 			"--name", containerName,
 			"--network", "spanel-net",
 			"--restart", "unless-stopped",
 			"-v", fmt.Sprintf("%s:/var/lib/mysql", volumeName),
-			"-e", "MYSQL_USER=spanel",
-			"-e", fmt.Sprintf("MYSQL_PASSWORD=%s", pass),
-			"-e", "MYSQL_DATABASE=spanel_db",
-			"-e", fmt.Sprintf("MYSQL_ROOT_PASSWORD=%s", pass),
-			"-p", "127.0.0.1:3306:3306",
-			"mysql:8.0",
-		)
+			"-e", fmt.Sprintf("MYSQL_USER=%s", dbUser),
+			"-e", fmt.Sprintf("MYSQL_PASSWORD=%s", dbPass),
+			"-e", fmt.Sprintf("MYSQL_DATABASE=%s", dbName),
+			"-e", fmt.Sprintf("MYSQL_ROOT_PASSWORD=%s", dbPass),
+		}
+		if opts.ExposeHostPort {
+			runArgs = append(runArgs, "-p", fmt.Sprintf("127.0.0.1:%d:3306", hostPort))
+		}
+		runArgs = append(runArgs, "mysql:8.0")
+
+		cmd := exec.CommandContext(ctx, "docker", runArgs...)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return nil, nil, fmt.Errorf("failed to run mysql container: %w (%s)", err, string(out))
 		}
 		volumeHostPath = volumeName
 
 	case "redis":
-		containerName = "spanel-redis"
+		serviceName = "redis"
+		engineVersion = "7.2-alpine"
+		if displayName == "" {
+			displayName = "Redis 7.2"
+		}
+		if containerName == "" {
+			containerName = "spanel-redis"
+		}
 		internalPort = 6379
-		pass := randomString(24)
+
+		dbPass := randomString(24)
+		if strings.TrimSpace(opts.Password) != "" {
+			dbPass = strings.TrimSpace(opts.Password)
+		}
+
+		hostPort := opts.HostPort
+		if hostPort <= 0 {
+			hostPort = 6379
+		}
+
+		externalURI := "Port not exposed externally (Accessible within spanel-net network)"
+		if opts.ExposeHostPort {
+			externalURI = fmt.Sprintf("redis://:%s@localhost:%d/0", dbPass, hostPort)
+		}
 
 		creds = DBCredentials{
 			ServiceName:  "redis",
 			Username:     "default",
-			Password:     pass,
+			Password:     dbPass,
 			DatabaseName: "0",
 			Port:         6379,
 			Host:         containerName,
-			InternalURI:  fmt.Sprintf("redis://:%s@%s:6379/0", pass, containerName),
-			ExternalURI:  fmt.Sprintf("redis://:%s@localhost:6379/0", pass),
+			InternalURI:  fmt.Sprintf("redis://:%s@%s:6379/0", dbPass, containerName),
+			ExternalURI:  externalURI,
 		}
 
-		volumeName := "spanel-vol-redis"
+		volumeName := fmt.Sprintf("spanel-vol-%s", containerName)
 		_ = exec.CommandContext(ctx, "docker", "volume", "create", volumeName).Run()
 		_ = exec.CommandContext(ctx, "docker", "rm", "-f", containerName).Run()
 
-		cmd := exec.CommandContext(ctx, "docker", "run", "-d",
+		runArgs := []string{
+			"run", "-d",
 			"--name", containerName,
 			"--network", "spanel-net",
 			"--restart", "unless-stopped",
 			"-v", fmt.Sprintf("%s:/data", volumeName),
-			"-p", "127.0.0.1:6379:6379",
-			"redis:7.2-alpine",
-			"redis-server", "--requirepass", pass,
-		)
+		}
+		if opts.ExposeHostPort {
+			runArgs = append(runArgs, "-p", fmt.Sprintf("127.0.0.1:%d:6379", hostPort))
+		}
+		runArgs = append(runArgs, "redis:7.2-alpine", "redis-server", "--requirepass", dbPass)
+
+		cmd := exec.CommandContext(ctx, "docker", runArgs...)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return nil, nil, fmt.Errorf("failed to run redis container: %w (%s)", err, string(out))
 		}
@@ -170,15 +301,17 @@ func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName str
 
 	case "sqlite", "sqlite3":
 		serviceName = "sqlite"
+		engineVersion = "3.x (Embedded)"
+		if displayName == "" {
+			displayName = "SQLite 3 (Embedded)"
+		}
 		containerName = "spanel-sqlite"
-		internalPort = 8085
+		internalPort = 0 // SQLite is an embedded database, not a network server
 
-		// 1. Create persistent folder on host: ./data/sqlite/
 		sqliteDir, _ := filepath.Abs(filepath.Join(m.cfg.DataDir, "sqlite"))
 		_ = os.MkdirAll(sqliteDir, 0755)
 		dbFilePath := filepath.Join(sqliteDir, "sqlite.db")
 
-		// 2. Initialize sqlite.db with WAL mode
 		if sdb, err := sql.Open("sqlite3", dbFilePath); err == nil {
 			_, _ = sdb.Exec("PRAGMA journal_mode=WAL;")
 			sdb.Close()
@@ -189,27 +322,12 @@ func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName str
 			Username:     "sqlite",
 			Password:     "-",
 			DatabaseName: "sqlite.db",
-			Port:         8085,
-			Host:         "localhost",
+			Port:         0,
+			Host:         "embedded",
 			InternalURI:  "file:/data/sqlite.db",
-			ExternalURI:  fmt.Sprintf("http://localhost:8085 (Web Inspector) | Host Path: %s", dbFilePath),
+			ExternalURI:  fmt.Sprintf("File on host: %s", dbFilePath),
 		}
-
 		volumeHostPath = sqliteDir
-
-		// 3. Optional: Run lightweight SQLite Web Viewer on port 8085 if available
-		_ = exec.CommandContext(ctx, "docker", "rm", "-f", "spanel-sqlite-web").Run()
-		runWeb := exec.CommandContext(ctx, "docker", "run", "-d",
-			"--name", "spanel-sqlite-web",
-			"--network", "spanel-net",
-			"--restart", "unless-stopped",
-			"-v", fmt.Sprintf("%s:/data", sqliteDir),
-			"-p", "127.0.0.1:8085:8080",
-			"-e", "SQLITE_DATABASE=/data/sqlite.db",
-			"coleifer/sqlite-web",
-			"sqlite.db",
-		)
-		_ = runWeb.Run()
 
 	default:
 		return nil, nil, fmt.Errorf("unsupported service: %s. Supported: postgresql, mysql, redis, sqlite", serviceName)
@@ -218,28 +336,39 @@ func (m *DatabaseManager) ProvisionDatabase(ctx context.Context, serviceName str
 	credsJSON, _ := json.Marshal(creds)
 	encCreds, _ := crypto.Encrypt(string(credsJSON), m.cfg.MasterKey, "mkt:service:"+serviceName)
 
-	// Save or update in database
 	var svc db.MarketplaceService
 	if err := m.db.First(&svc, "service_name = ?", serviceName).Error; err == nil {
+		svc.DisplayName = displayName
+		svc.EngineVersion = engineVersion
 		svc.ContainerID = containerName
 		svc.InternalHostname = containerName
 		svc.InternalPort = internalPort
 		svc.CredentialsEncrypted = encCreds
 		svc.VolumeHostPath = volumeHostPath
+		svc.ExposeHostPort = opts.ExposeHostPort
+		svc.HostPort = opts.HostPort
 		svc.Status = "running"
 		m.db.Save(&svc)
 	} else {
 		svc = db.MarketplaceService{
 			UserID:               "default-admin",
 			ServiceName:          serviceName,
+			DisplayName:          displayName,
+			EngineVersion:        engineVersion,
 			ContainerID:          containerName,
 			InternalHostname:     containerName,
 			InternalPort:         internalPort,
 			CredentialsEncrypted: encCreds,
 			VolumeHostPath:       volumeHostPath,
+			ExposeHostPort:       opts.ExposeHostPort,
+			HostPort:             opts.HostPort,
 			Status:               "running",
 		}
 		m.db.Create(&svc)
+	}
+
+	if opts.AttachProjectID != "" {
+		_, _ = m.AttachDatabaseToProject(opts.AttachProjectID, svc.ID)
 	}
 
 	return &svc, &creds, nil
@@ -264,7 +393,23 @@ func (m *DatabaseManager) GetDecryptedCredentials(svc *db.MarketplaceService) (*
 	return &creds, nil
 }
 
-// AttachDatabaseToProject injects DATABASE_URL or REDIS_URL into the project's env vars
+func (m *DatabaseManager) upsertInjectedEnv(projectID, key, val string, isSecret bool) error {
+	encVal, err := crypto.Encrypt(val, m.cfg.MasterKey, "env:"+projectID+":"+key)
+	if err != nil {
+		return err
+	}
+	m.db.Where("project_id = ? AND key = ?", projectID, key).Delete(&db.EnvironmentVariable{})
+	return m.db.Select("*").Create(&db.EnvironmentVariable{
+		ProjectID:        projectID,
+		Key:              key,
+		ValueEncrypted:   encVal,
+		IsSystemInjected: true,
+		Scope:            db.ScopeRuntime,
+		IsSecret:         isSecret,
+	}).Error
+}
+
+// AttachDatabaseToProject injects complete framework (Laravel, Rails, Node, Go) environment variables into the project
 func (m *DatabaseManager) AttachDatabaseToProject(projectID string, serviceID string) (*DBCredentials, error) {
 	var project db.Project
 	if err := m.db.First(&project, "id = ?", projectID).Error; err != nil {
@@ -281,30 +426,37 @@ func (m *DatabaseManager) AttachDatabaseToProject(projectID string, serviceID st
 		return nil, fmt.Errorf("failed to retrieve credentials: %w", err)
 	}
 
-	envKey := "DATABASE_URL"
-	envVal := creds.InternalURI
+	switch service.ServiceName {
+	case "postgresql", "postgres":
+		_ = m.upsertInjectedEnv(project.ID, "DATABASE_URL", creds.InternalURI, true)
+		_ = m.upsertInjectedEnv(project.ID, "DB_CONNECTION", "pgsql", false)
+		_ = m.upsertInjectedEnv(project.ID, "DB_HOST", creds.Host, false)
+		_ = m.upsertInjectedEnv(project.ID, "DB_PORT", fmt.Sprintf("%d", creds.Port), false)
+		_ = m.upsertInjectedEnv(project.ID, "DB_DATABASE", creds.DatabaseName, false)
+		_ = m.upsertInjectedEnv(project.ID, "DB_USERNAME", creds.Username, false)
+		_ = m.upsertInjectedEnv(project.ID, "DB_PASSWORD", creds.Password, true)
 
-	if service.ServiceName == "redis" {
-		envKey = "REDIS_URL"
-	}
+	case "mysql":
+		_ = m.upsertInjectedEnv(project.ID, "DATABASE_URL", creds.InternalURI, true)
+		_ = m.upsertInjectedEnv(project.ID, "DB_CONNECTION", "mysql", false)
+		_ = m.upsertInjectedEnv(project.ID, "DB_HOST", creds.Host, false)
+		_ = m.upsertInjectedEnv(project.ID, "DB_PORT", fmt.Sprintf("%d", creds.Port), false)
+		_ = m.upsertInjectedEnv(project.ID, "DB_DATABASE", creds.DatabaseName, false)
+		_ = m.upsertInjectedEnv(project.ID, "DB_USERNAME", creds.Username, false)
+		_ = m.upsertInjectedEnv(project.ID, "DB_PASSWORD", creds.Password, true)
 
-	encVal, err := crypto.Encrypt(envVal, m.cfg.MasterKey, "env:"+project.ID+":"+envKey)
-	if err != nil {
-		return nil, fmt.Errorf("encryption error: %w", err)
-	}
+	case "redis":
+		_ = m.upsertInjectedEnv(project.ID, "REDIS_URL", creds.InternalURI, true)
+		_ = m.upsertInjectedEnv(project.ID, "REDIS_HOST", creds.Host, false)
+		_ = m.upsertInjectedEnv(project.ID, "REDIS_PORT", fmt.Sprintf("%d", creds.Port), false)
+		_ = m.upsertInjectedEnv(project.ID, "REDIS_PASSWORD", creds.Password, true)
 
-	// Upsert environment variable
-	m.db.Where("project_id = ? AND key = ?", project.ID, envKey).Delete(&db.EnvironmentVariable{})
-	envVar := db.EnvironmentVariable{
-		ProjectID:        project.ID,
-		Key:              envKey,
-		ValueEncrypted:   encVal,
-		IsSystemInjected: true,
-	}
-	m.db.Create(&envVar)
+	case "sqlite":
+		_ = m.upsertInjectedEnv(project.ID, "DB_CONNECTION", "sqlite", false)
+		_ = m.upsertInjectedEnv(project.ID, "DB_DATABASE", "/data/sqlite.db", false)
+		_ = m.upsertInjectedEnv(project.ID, "SQLITE_PATH", "/data/sqlite.db", false)
+		_ = m.upsertInjectedEnv(project.ID, "DATABASE_URL", "file:/data/sqlite.db", false)
 
-	// If SQLite, also attach volume mount to /data
-	if service.ServiceName == "sqlite" {
 		sqliteDir, _ := filepath.Abs(filepath.Join(m.cfg.DataDir, "sqlite"))
 		m.db.Where("project_id = ? AND name = ?", project.ID, "sqlite-data").Delete(&db.Volume{})
 		vol := db.Volume{
@@ -314,19 +466,39 @@ func (m *DatabaseManager) AttachDatabaseToProject(projectID string, serviceID st
 			HostPath:      sqliteDir,
 		}
 		m.db.Create(&vol)
-
-		// Also inject SQLITE_PATH
-		encPath, _ := crypto.Encrypt("/data/sqlite.db", m.cfg.MasterKey, "env:"+project.ID+":SQLITE_PATH")
-		m.db.Where("project_id = ? AND key = ?", project.ID, "SQLITE_PATH").Delete(&db.EnvironmentVariable{})
-		m.db.Create(&db.EnvironmentVariable{
-			ProjectID:        project.ID,
-			Key:              "SQLITE_PATH",
-			ValueEncrypted:   encPath,
-			IsSystemInjected: true,
-		})
 	}
 
 	return creds, nil
+}
+
+func (m *DatabaseManager) RestartService(ctx context.Context, serviceID string) error {
+	var svc db.MarketplaceService
+	if err := m.db.First(&svc, "id = ?", serviceID).Error; err != nil {
+		return fmt.Errorf("service not found: %w", err)
+	}
+	if svc.ContainerID == "" {
+		return fmt.Errorf("no container found for service")
+	}
+	if err := exec.CommandContext(ctx, "docker", "restart", svc.ContainerID).Run(); err != nil {
+		return fmt.Errorf("failed to restart container: %w", err)
+	}
+	return nil
+}
+
+func (m *DatabaseManager) GetRealContainerStatus(ctx context.Context, containerID string) string {
+	if containerID == "" {
+		return "stopped"
+	}
+	cmd := exec.CommandContext(ctx, "docker", "inspect", "--format", "{{.State.Status}}", containerID)
+	out, err := cmd.Output()
+	if err != nil {
+		return "stopped"
+	}
+	st := strings.TrimSpace(string(out))
+	if st == "" {
+		return "stopped"
+	}
+	return st
 }
 
 type BackupInfo struct {

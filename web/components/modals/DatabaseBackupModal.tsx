@@ -6,11 +6,13 @@ import {
   Database,
   RotateCcw,
   Plus,
-  Loader2,
+  RefreshCw,
   HardDrive,
   Clock,
-  FileCheck,
+  CheckCircle2,
   AlertTriangle,
+  FolderArchive,
+  Info,
 } from "lucide-react";
 import { InstalledService, BackupInfo } from "@/types";
 import {
@@ -39,43 +41,63 @@ export function DatabaseBackupModal({
   const loadBackups = useCallback(async () => {
     if (!service) return;
     setLoading(true);
-    const data = await fetchMarketplaceBackups(service.id);
-    setBackups(data);
-    setLoading(false);
+    try {
+      const data = await fetchMarketplaceBackups(service.id);
+      setBackups(data);
+    } catch {
+      setMessage({ type: "error", text: "Failed to load database snapshots" });
+    } finally {
+      setLoading(false);
+    }
   }, [service]);
 
   useEffect(() => {
+    let ignore = false;
     if (isOpen && service) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      loadBackups();
+      fetchMarketplaceBackups(service.id)
+        .then((data) => {
+          if (!ignore) setBackups(data);
+        })
+        .catch(() => {
+          if (!ignore) setMessage({ type: "error", text: "Failed to load database snapshots" });
+        })
+        .finally(() => {
+          if (!ignore) setLoading(false);
+        });
     }
-  }, [isOpen, service, loadBackups]);
+    return () => {
+      ignore = true;
+    };
+  }, [isOpen, service]);
 
   if (!isOpen || !service) return null;
 
   const handleCreateBackup = async () => {
     setCreating(true);
     setMessage(null);
-    const res = await triggerMarketplaceBackup(service.id);
-    if (res.ok) {
-      setMessage({
-        type: "success",
-        text: `✓ Snapshot/Backup berhasil dibuat: ${res.data?.filename}`,
-      });
-      await loadBackups();
-    } else {
-      setMessage({
-        type: "error",
-        text: `❌ Gagal membuat backup: ${res.error}`,
-      });
+    try {
+      const res = await triggerMarketplaceBackup(service.id);
+      if (res.ok) {
+        setMessage({
+          type: "success",
+          text: `✓ Snapshot created successfully: ${res.data?.filename}`,
+        });
+        await loadBackups();
+      } else {
+        setMessage({
+          type: "error",
+          text: `❌ Failed to create snapshot: ${res.error}`,
+        });
+      }
+    } finally {
+      setCreating(false);
     }
-    setCreating(false);
   };
 
   const handleRestore = async (filename: string) => {
     if (
       !confirm(
-        `PERINGATAN: Apakah Anda yakin ingin me-restore database dari file "${filename}"? Data saat ini akan ditimpa.`
+        `CAUTION: Are you sure you want to restore "${filename}"?\n\nExisting database tables and data in the running container will be overwritten with this snapshot.`
       )
     ) {
       return;
@@ -83,19 +105,22 @@ export function DatabaseBackupModal({
 
     setRestoringFile(filename);
     setMessage(null);
-    const res = await restoreMarketplaceBackup(service.id, filename);
-    if (res.ok) {
-      setMessage({
-        type: "success",
-        text: `✓ Database berhasil di-restore dari snapshot "${filename}"`,
-      });
-    } else {
-      setMessage({
-        type: "error",
-        text: `❌ Gagal me-restore database: ${res.error}`,
-      });
+    try {
+      const res = await restoreMarketplaceBackup(service.id, filename);
+      if (res.ok) {
+        setMessage({
+          type: "success",
+          text: `✓ Database successfully restored from snapshot "${filename}"`,
+        });
+      } else {
+        setMessage({
+          type: "error",
+          text: `❌ Restore failed: ${res.error}`,
+        });
+      }
+    } finally {
+      setRestoringFile(null);
     }
-    setRestoringFile(null);
   };
 
   const formatSize = (bytes: number) => {
@@ -107,7 +132,7 @@ export function DatabaseBackupModal({
   const formatDate = (dateStr: string) => {
     try {
       const d = new Date(dateStr);
-      return d.toLocaleString("id-ID", {
+      return d.toLocaleString(undefined, {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -120,29 +145,29 @@ export function DatabaseBackupModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white border border-gray-200 rounded-xl w-full max-w-2xl overflow-hidden shadow-xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+            <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-2xs">
               <Database className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
-                <span>Backup & Snapshot Database</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono uppercase">
-                  {service.service_name}
+              <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                <span>Database Snapshots &amp; Backups</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-mono font-medium uppercase border border-indigo-200">
+                  {service.display_name || service.service_name}
                 </span>
               </h3>
-              <p className="text-xs text-zinc-400">
-                Container: <code className="text-zinc-300">{service.container_id}</code>
+              <p className="text-xs text-gray-500 font-mono">
+                Container: {service.container_id}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
+            className="p-1 text-gray-400 hover:text-gray-600 rounded-md transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -151,77 +176,80 @@ export function DatabaseBackupModal({
         {/* Feedback Alert */}
         {message && (
           <div
-            className={`mx-6 mt-4 p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${
+            className={`mx-6 mt-4 p-3.5 rounded-xl text-xs flex items-start gap-2.5 border ${
               message.type === "success"
-                ? "bg-emerald-950/50 text-emerald-300 border border-emerald-800/60"
-                : "bg-red-950/50 text-red-300 border border-red-800/60"
+                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                : "bg-red-50 text-red-800 border-red-200"
             }`}
           >
             {message.type === "success" ? (
-              <FileCheck className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
             ) : (
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
             )}
-            <span>{message.text}</span>
+            <span className="font-medium">{message.text}</span>
           </div>
         )}
 
         {/* Content */}
-        <div className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-zinc-400 flex items-center gap-2">
-              <HardDrive className="w-4 h-4 text-zinc-500" />
+        <div className="p-6 space-y-4 overflow-y-auto">
+          {/* Top Actions & Stats */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="text-xs text-gray-500 flex items-center gap-2">
+              <FolderArchive className="w-4 h-4 text-gray-400" />
               <span>
-                Total Snapshot: <strong className="text-zinc-200">{backups.length}</strong>
+                Available Snapshots: <strong className="text-gray-900 font-semibold">{backups.length}</strong>
               </span>
             </div>
             <button
               onClick={handleCreateBackup}
               disabled={creating}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl flex items-center gap-2 shadow-lg shadow-purple-600/20 transition-all cursor-pointer"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-2 shadow-2xs transition cursor-pointer self-start sm:self-auto"
             >
               {creating ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Sedang Membuat Dump...</span>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Generating Logical Dump...</span>
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4" />
-                  <span>Buat Backup Baru</span>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create Snapshot Now</span>
                 </>
               )}
             </button>
           </div>
 
-          {/* Table of Backups */}
-          <div className="border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-900/30">
+          {/* Table / List of Backups */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-2xs">
             {loading ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-2 text-zinc-400 text-xs">
-                <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
-                <span>Memuat riwayat backup...</span>
+              <div className="py-12 flex flex-col items-center justify-center gap-2 text-gray-500 text-xs">
+                <RefreshCw className="w-5 h-5 animate-spin text-indigo-600" />
+                <span>Reading backup archives...</span>
               </div>
             ) : backups.length === 0 ? (
-              <div className="py-12 text-center text-zinc-500 text-xs space-y-1">
-                <Clock className="w-8 h-8 mx-auto text-zinc-600 mb-2" />
-                <p>Belum ada file backup / snapshot untuk database ini.</p>
-                <p className="text-zinc-600">Klik tombol di atas untuk membuat snapshot pertama.</p>
+              <div className="py-12 text-center text-gray-500 text-xs space-y-1">
+                <HardDrive className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                <p className="font-semibold text-gray-800">No snapshots recorded for this instance</p>
+                <p className="text-gray-500 max-w-sm mx-auto">
+                  Click &quot;Create Snapshot Now&quot; above to capture a point-in-time logical backup of your database.
+                </p>
               </div>
             ) : (
-              <div className="divide-y divide-zinc-800/60 max-h-75 overflow-y-auto">
+              <div className="divide-y divide-gray-100 max-h-72 overflow-y-auto">
                 {backups.map((b) => (
                   <div
                     key={b.filename}
-                    className="p-3.5 flex items-center justify-between hover:bg-zinc-800/30 transition-colors"
+                    className="p-3.5 px-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
                   >
                     <div className="space-y-1">
-                      <div className="text-xs font-mono text-zinc-200 flex items-center gap-2">
+                      <div className="text-xs font-mono text-gray-900 flex items-center gap-2 font-medium">
                         <span>{b.filename}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-sans">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-sans font-medium">
                           {formatSize(b.size)}
                         </span>
                       </div>
-                      <div className="text-[11px] text-zinc-500 flex items-center gap-1.5">
+                      <div className="text-[11px] text-gray-400 flex items-center gap-1.5 font-sans">
                         <Clock className="w-3 h-3" />
                         <span>{formatDate(b.created_at)}</span>
                       </div>
@@ -231,13 +259,13 @@ export function DatabaseBackupModal({
                       <button
                         onClick={() => handleRestore(b.filename)}
                         disabled={restoringFile === b.filename}
-                        title="Restore database ke snapshot ini"
-                        className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                        title="Restore database to this snapshot"
+                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-medium rounded-lg flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 shadow-2xs"
                       >
                         {restoringFile === b.filename ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-700" />
                         ) : (
-                          <RotateCcw className="w-3.5 h-3.5" />
+                          <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
                         )}
                         <span>Restore</span>
                       </button>
@@ -247,15 +275,26 @@ export function DatabaseBackupModal({
               </div>
             )}
           </div>
+
+          {/* Operational Info Alert */}
+          <div className="p-3.5 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600 flex items-start gap-2.5">
+            <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-semibold text-gray-900">Backup Architecture Note:</span>
+              <p className="leading-relaxed">
+                Snapshots use native database tools (<code>pg_dump</code>, <code>mysqldump</code>, <code>redis SAVE</code>) and are safely stored under <code>./data/backups/</code> on the host VPS. Automatic recurring backup schedules can be bound to the system cron or sPanel queue.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-zinc-800 bg-zinc-900/40 flex justify-end">
+        <div className="px-6 py-3.5 border-t border-gray-200 bg-gray-50 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium rounded-xl transition-colors cursor-pointer"
+            className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-medium rounded-lg transition-colors cursor-pointer shadow-2xs"
           >
-            Tutup
+            Close
           </button>
         </div>
       </div>

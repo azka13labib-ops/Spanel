@@ -15,6 +15,7 @@ import {
   CreateDNSRecordInput,
   VersionInfo,
   ContainerItem,
+  ProvisionDatabasePayload,
 } from "@/types";
 
 export const authEvent = typeof window !== 'undefined' ? new EventTarget() : null;
@@ -24,18 +25,14 @@ export function getWebSocketUrl(path: string): string {
   const isDev = window.location.port === "3000";
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const host = isDev ? `${window.location.hostname}:8080` : window.location.host;
-  const token = localStorage.getItem("spanel_token") || "";
-  const delimiter = path.includes("?") ? "&" : "?";
-  return `${protocol}//${host}${path}${token ? `${delimiter}token=${encodeURIComponent(token)}` : ""}`;
+  return `${protocol}//${host}${path}`;
 }
 
 async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("spanel_token") || "" : "";
-  const headers = new Headers(init?.headers);
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-  const config = { ...init, headers };
+  const config: RequestInit = {
+    ...init,
+    credentials: "same-origin",
+  };
 
   const res = await fetch(input, config);
 
@@ -46,19 +43,17 @@ async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<R
   return res;
 }
 
-export async function login(password: string): Promise<{ ok: boolean; token?: string; error?: string }> {
+export async function login(password: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
       body: JSON.stringify({ password }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      if (typeof window !== "undefined" && data.token) {
-        localStorage.setItem("spanel_token", data.token);
-      }
-      return { ok: true, token: data.token };
+      return { ok: true };
     }
     return { ok: false, error: data.error || "Gagal login" };
   } catch (err) {
@@ -70,7 +65,7 @@ export async function logout(): Promise<boolean> {
   try {
     const res = await apiFetch("/api/auth/logout", { method: "POST" });
     if (typeof window !== "undefined") {
-      localStorage.removeItem("spanel_token");
+      localStorage.removeItem("spanel_token"); // Clean up any stale legacy token
     }
     return res.ok;
   } catch {
@@ -80,6 +75,24 @@ export async function logout(): Promise<boolean> {
     return true;
   }
 }
+
+export async function rotatePassword(currentPassword: string, newPassword: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch("/api/auth/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      return { ok: true };
+    }
+    return { ok: false, error: data.error || "Gagal mengubah password" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message || "Koneksi gagal" };
+  }
+}
+
 
 export async function fetchContainers(): Promise<ContainerItem[]> {
   try {
@@ -235,19 +248,48 @@ export async function fetchMarketplaceServices(): Promise<InstalledService[]> {
 }
 
 export async function installMarketplaceService(
-  serviceName: string
+  payload: string | ProvisionDatabasePayload
 ): Promise<{ ok: boolean; data?: { service: InstalledService; credentials?: DBCredentials }; error?: string }> {
   try {
+    const body = typeof payload === "string" ? { service_name: payload } : payload;
     const res = await apiFetch("/api/marketplace/install", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ service_name: serviceName }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (res.ok) {
       return { ok: true, data };
     }
     return { ok: false, error: data.error || "Gagal memasang database" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function restartMarketplaceService(
+  serviceId: string
+): Promise<{ ok: boolean; status?: string; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/marketplace/${serviceId}/restart`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    if (res.ok) return { ok: true, status: data.status };
+    return { ok: false, error: data.error || "Gagal me-restart database" };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function fetchMarketplaceCredentials(
+  serviceId: string
+): Promise<{ ok: boolean; data?: DBCredentials; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/marketplace/${serviceId}/credentials`);
+    const data = await res.json();
+    if (res.ok) return { ok: true, data };
+    return { ok: false, error: data.error || "Gagal mengambil kredensial database" };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }

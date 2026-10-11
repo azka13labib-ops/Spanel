@@ -69,6 +69,10 @@ func NewServer(database *gorm.DB, q *queue.Queue, cfg *config.Config, embeddedFS
 }
 
 func (s *Server) setupRoutes() {
+	// Global transport security and CSRF / Origin validation
+	s.app.Use(s.requireSecureTransport())
+	s.app.Use(s.requireCSRFProtection())
+
 	// API Group
 	apiGroup := s.app.Group("/api", s.requireAuth())
 
@@ -77,8 +81,10 @@ func (s *Server) setupRoutes() {
 	apiGroup.Post("/setup", s.handleSetup)
 	apiGroup.Post("/auth/login", s.handleLogin)
 	apiGroup.Post("/auth/logout", s.handleLogout)
+	apiGroup.Post("/auth/password", s.handleRotatePassword)
 	apiGroup.Get("/auth/me", s.handleGetMe)
 	apiGroup.Get("/containers", s.handleListContainers)
+
 	apiGroup.Get("/system/metrics", s.handleSystemMetrics)
 	apiGroup.Get("/system/version", s.handleGetVersion)
 	apiGroup.Post("/system/check-update", s.handleCheckUpdate)
@@ -114,6 +120,7 @@ func (s *Server) setupRoutes() {
 	apiGroup.Post("/marketplace/install", s.handleInstallMarketplaceService)
 	apiGroup.Get("/marketplace/:id/credentials", s.handleGetMarketplaceCredentials)
 	apiGroup.Delete("/marketplace/:id", s.handleDeleteMarketplaceService)
+	apiGroup.Post("/marketplace/:id/restart", s.handleRestartMarketplaceService)
 	apiGroup.Post("/marketplace/:id/backup", s.handleBackupMarketplaceService)
 	apiGroup.Get("/marketplace/:id/backups", s.handleListMarketplaceBackups)
 	apiGroup.Post("/marketplace/:id/restore", s.handleRestoreMarketplaceBackup)

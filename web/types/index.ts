@@ -112,22 +112,41 @@ export interface DBCredentials {
 export interface InstalledService {
   id: string;
   service_name: string;
+  display_name?: string;
+  engine_version?: string;
   container_id: string;
   internal_hostname: string;
   internal_port: number;
   volume_host_path?: string;
+  expose_host_port?: boolean;
+  host_port?: number;
   status: string;
   created_at: string;
   credentials?: DBCredentials;
+  linked_projects?: { id: string; name: string }[];
 }
 
 export interface MarketplaceTemplate {
   id: "postgresql" | "mysql" | "redis" | "sqlite";
   name: string;
+  engine: string;
+  version: string;
   desc: string;
   port: number;
-  color: string;
   category: "SQL" | "Cache" | "Embedded";
+  persistence: string;
+  is_network_daemon: boolean;
+}
+
+export interface ProvisionDatabasePayload {
+  service_name: "postgresql" | "mysql" | "redis" | "sqlite";
+  custom_name?: string;
+  database_name?: string;
+  username?: string;
+  password?: string;
+  expose_host_port?: boolean;
+  host_port?: number;
+  attach_project_id?: string;
 }
 
 export interface BackupInfo {
