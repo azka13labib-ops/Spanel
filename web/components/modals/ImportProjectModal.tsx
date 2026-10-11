@@ -150,27 +150,17 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
     e.preventDefault();
     if (!manualProject.name || !manualProject.repo_fullname) return;
 
+    setIsDeployingImport(true);
+    setImportError("");
     const res = await createProject(manualProject);
+    setIsDeployingImport(false);
     if (res.ok && res.data) {
       onProjectCreated(res.data, false);
+      onClose();
+      setManualProject({ name: "", repo_fullname: "", branch: "main", target_port: 3000 });
     } else {
-      // Local fallback
-      const localProj: Project = {
-        id: `proj-${Date.now()}`,
-        name: manualProject.name,
-        repo_fullname: manualProject.repo_fullname,
-        branch: manualProject.branch,
-        magic_domain: `${manualProject.name}.${hostIP}.sslip.io`,
-        target_port: Number(manualProject.target_port),
-        healthcheck_path: "/",
-        status: "running",
-        created_at: new Date().toISOString(),
-      };
-      onProjectCreated(localProj, false);
+      setImportError(res.error || "Failed to create project. Please verify backend connection and repository name.");
     }
-
-    onClose();
-    setManualProject({ name: "", repo_fullname: "", branch: "main", target_port: 3000 });
   };
 
   const filteredRepos = githubRepos.filter((r) => {
@@ -352,18 +342,33 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
         ) : showManualInput ? (
           /* Manual Input Fallback */
           <div className="p-6 space-y-5">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg text-white">Manual Git Import</h3>
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div>
+                <h3 className="font-bold text-lg text-gray-900">Manual Git Import</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Specify a repository name and target port manually.</p>
+              </div>
               <button
-                onClick={() => setShowManualInput(false)}
-                className="text-xs text-cyan-400 hover:underline cursor-pointer"
+                type="button"
+                onClick={() => {
+                  setShowManualInput(false);
+                  setImportError("");
+                }}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
               >
-                ← Back to GitHub Import
+                ← Back to GitHub Repositories
               </button>
             </div>
+
+            {importError && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{importError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleCreateManual} className="space-y-4">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Project Name (Slug)</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Project Name (Slug)</label>
                 <input
                   type="text"
                   required
@@ -375,37 +380,37 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
                       name: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
                     })
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-sm focus:border-cyan-400 outline-none text-white font-mono"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-mono"
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Repository Full Name (Owner/Repo)</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Repository Full Name (Owner/Repo)</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. username/repo"
                   value={manualProject.repo_fullname}
                   onChange={(e) => setManualProject({ ...manualProject, repo_fullname: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-sm focus:border-cyan-400 outline-none text-white"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Branch</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Branch</label>
                   <input
                     type="text"
                     value={manualProject.branch}
                     onChange={(e) => setManualProject({ ...manualProject, branch: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-sm focus:border-cyan-400 outline-none text-white"
+                    className="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Target Port</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Target Port</label>
                   <input
                     type="number"
                     value={manualProject.target_port}
                     onChange={(e) => setManualProject({ ...manualProject, target_port: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-sm focus:border-cyan-400 outline-none text-white font-mono"
+                    className="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-mono"
                   />
                 </div>
               </div>
@@ -413,15 +418,23 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 cursor-pointer"
+                  className="px-4 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition cursor-pointer shadow-2xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 text-black font-semibold text-xs shadow-lg shadow-cyan-500/20 cursor-pointer"
+                  disabled={isDeployingImport}
+                  className="px-5 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-medium text-xs transition cursor-pointer shadow-2xs disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  Create &amp; Provision
+                  {isDeployingImport ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Creating...</span>
+                    </>
+                  ) : (
+                    <span>Create &amp; Provision</span>
+                  )}
                 </button>
               </div>
             </form>

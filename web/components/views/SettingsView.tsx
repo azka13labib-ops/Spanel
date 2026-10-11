@@ -5,27 +5,37 @@ import {
   Database,
   Server,
   Sparkles,
+  Shield,
 } from "lucide-react";
 import { AIAssistantView } from "@/components/ai/AIAssistantView";
 import { DNSManagerView } from "@/components/dns/DNSManagerView";
 import { MarketplaceView } from "@/components/marketplace/MarketplaceView";
 import { ServerHygieneView } from "@/components/server/ServerHygieneView";
+import { SecuritySettingsView } from "@/components/security/SecuritySettingsView";
 import { Project, SystemMetrics } from "@/types";
 
 interface SettingsViewProps {
   metrics: SystemMetrics;
   projects: Project[];
   onOpenUpdateModal?: () => void;
+  initialSubTab?: "ai" | "dns" | "databases" | "server" | "security";
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ metrics, projects, onOpenUpdateModal }) => {
-  const [activeSubTab, setActiveSubTab] = useState<"ai" | "dns" | "databases" | "server">("ai");
+export const SettingsView: React.FC<SettingsViewProps> = ({
+  metrics,
+  projects,
+  onOpenUpdateModal,
+  initialSubTab = "ai",
+}) => {
+  const [selectedSubTab, setSelectedSubTab] = useState<"ai" | "dns" | "databases" | "server" | "security" | null>(null);
+  const activeSubTab = selectedSubTab || initialSubTab;
 
   const subTabs = [
     { id: "ai" as const, label: "AI Diagnostics (BYOK)", icon: Bot },
     { id: "dns" as const, label: "Cloudflare DNS", icon: Globe },
     { id: "databases" as const, label: "Databases & Backups", icon: Database },
     { id: "server" as const, label: "Server & Nginx", icon: Server },
+    { id: "security" as const, label: "Security & Credentials", icon: Shield },
   ];
 
   return (
@@ -59,7 +69,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ metrics, projects, o
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveSubTab(tab.id)}
+              onClick={() => setSelectedSubTab(tab.id)}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-lg font-medium transition cursor-pointer whitespace-nowrap ${
                 isActive
                   ? "bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200"
@@ -79,6 +89,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ metrics, projects, o
         {activeSubTab === "dns" && <DNSManagerView hostIp={metrics.host_ip} />}
         {activeSubTab === "databases" && <MarketplaceView projects={projects} />}
         {activeSubTab === "server" && <ServerHygieneView />}
+        {activeSubTab === "security" && <SecuritySettingsView />}
       </div>
     </div>
   );

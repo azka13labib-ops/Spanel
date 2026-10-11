@@ -391,6 +391,17 @@ export default function Dashboard() {
               metrics={metrics}
               projects={projects}
               onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
+              initialSubTab={
+                activeTab === "marketplace"
+                  ? "databases"
+                  : activeTab === "dns"
+                  ? "dns"
+                  : activeTab === "ai"
+                  ? "ai"
+                  : activeTab === "server"
+                  ? "server"
+                  : undefined
+              }
             />
           )}
         </main>
