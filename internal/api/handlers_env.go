@@ -14,15 +14,45 @@ type EnvVarItem struct {
 	Key              string `json:"key"`
 	Value            string `json:"value"`
 	IsSystemInjected bool   `json:"is_system_injected"`
+	Scope            string `json:"scope"`
+	IsSecret         bool   `json:"is_secret"`
 }
 
 type SetEnvVarInput struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	Key      string `json:"key"`
+	Value    string `json:"value"`
+	Scope    string `json:"scope"`
+	IsSecret *bool  `json:"is_secret"`
 }
 
 type BulkEnvVarInput struct {
-	RawEnv string `json:"raw_env"`
+	RawEnv   string `json:"raw_env"`
+	Scope    string `json:"scope"`
+	IsSecret *bool  `json:"is_secret"`
+}
+
+func normalizeScope(scope, key string) string {
+	scope = strings.ToLower(strings.TrimSpace(scope))
+	switch scope {
+	case db.ScopeBuild, db.ScopeRuntime, db.ScopeBoth:
+		return scope
+	default:
+		if strings.HasPrefix(key, "NEXT_PUBLIC_") {
+			return db.ScopeBuild
+		}
+		return db.ScopeBoth
+	}
+}
+
+func resolveIsSecret(key string, isSecret *bool) bool {
+	// Build-time variables embedded in frontend assets must never be treated as secrets.
+	if strings.HasPrefix(key, "NEXT_PUBLIC_") {
+		return false
+	}
+	if isSecret != nil {
+		return *isSecret
+	}
+	return true
 }
 
 func (s *Server) handleListProjectEnvVars(c *fiber.Ctx) error {
@@ -39,11 +69,29 @@ func (s *Server) handleListProjectEnvVars(c *fiber.Ctx) error {
 
 	items := make([]EnvVarItem, 0, len(envs))
 	for _, e := range envs {
+		scope := e.Scope
+		if scope == "" {
+			scope = normalizeScope(scope, e.Key)
+		}
+		isSecret := e.IsSecret
+		if strings.HasPrefix(e.Key, "NEXT_PUBLIC_") {
+			isSecret = false
+		}
+
+		displayVal := "********"
+		if !isSecret {
+			if decrypted, err := crypto.Decrypt(e.ValueEncrypted, s.cfg.MasterKey, "env:"+e.ProjectID+":"+e.Key); err == nil {
+				displayVal = decrypted
+			}
+		}
+
 		items = append(items, EnvVarItem{
 			ID:               e.ID,
 			Key:              e.Key,
-			Value:            "********",
+			Value:            displayVal,
 			IsSystemInjected: e.IsSystemInjected,
+			Scope:            scope,
+			IsSecret:         isSecret,
 		})
 	}
 
@@ -82,6 +130,8 @@ func (s *Server) handleSetProjectEnvVar(c *fiber.Ctx) error {
 
 	key := strings.TrimSpace(input.Key)
 	val := strings.TrimSpace(input.Value)
+	scope := normalizeScope(input.Scope, key)
+	isSecret := resolveIsSecret(key, input.IsSecret)
 
 	encVal, err := crypto.Encrypt(val, s.cfg.MasterKey, "env:"+projectID+":"+key)
 	if err != nil {
@@ -93,6 +143,8 @@ func (s *Server) handleSetProjectEnvVar(c *fiber.Ctx) error {
 	if err := s.db.Where("project_id = ? AND key = ?", projectID, key).First(&env).Error; err == nil {
 		env.ValueEncrypted = encVal
 		env.IsSystemInjected = false
+		env.Scope = scope
+		env.IsSecret = isSecret
 		s.db.Save(&env)
 	} else {
 		env = db.EnvironmentVariable{
@@ -100,15 +152,24 @@ func (s *Server) handleSetProjectEnvVar(c *fiber.Ctx) error {
 			Key:              key,
 			ValueEncrypted:   encVal,
 			IsSystemInjected: false,
+			Scope:            scope,
+			IsSecret:         isSecret,
 		}
 		s.db.Create(&env)
+	}
+
+	displayVal := "********"
+	if !isSecret {
+		displayVal = val
 	}
 
 	return c.JSON(EnvVarItem{
 		ID:               env.ID,
 		Key:              env.Key,
-		Value:            val,
+		Value:            displayVal,
 		IsSystemInjected: env.IsSystemInjected,
+		Scope:            env.Scope,
+		IsSecret:         env.IsSecret,
 	})
 }
 
@@ -127,6 +188,7 @@ func (s *Server) handleBulkSetProjectEnvVars(c *fiber.Ctx) error {
 	preprocessed := preprocessEnv(input.RawEnv)
 	envs, _ := godotenv.Unmarshal(preprocessed)
 	count := 0
+	defaultScope := strings.TrimSpace(input.Scope)
 
 	for k, v := range envs {
 		k = strings.TrimSpace(k)
@@ -142,9 +204,14 @@ func (s *Server) handleBulkSetProjectEnvVars(c *fiber.Ctx) error {
 			continue
 		}
 
+		scope := normalizeScope(defaultScope, k)
+		isSecret := resolveIsSecret(k, input.IsSecret)
+
 		var env db.EnvironmentVariable
 		if err := s.db.Where("project_id = ? AND key = ?", projectID, k).First(&env).Error; err == nil {
 			env.ValueEncrypted = encVal
+			env.Scope = scope
+			env.IsSecret = isSecret
 			s.db.Save(&env)
 		} else {
 			env = db.EnvironmentVariable{
@@ -152,6 +219,8 @@ func (s *Server) handleBulkSetProjectEnvVars(c *fiber.Ctx) error {
 				Key:              k,
 				ValueEncrypted:   encVal,
 				IsSystemInjected: false,
+				Scope:            scope,
+				IsSecret:         isSecret,
 			}
 			s.db.Create(&env)
 		}

@@ -100,12 +100,28 @@ type Project struct {
 	Deployments []Deployment          `gorm:"foreignKey:ProjectID" json:"deployments,omitempty"`
 }
 
+const (
+	ScopeBuild   = "build"
+	ScopeRuntime = "runtime"
+	ScopeBoth    = "both"
+)
+
 type EnvironmentVariable struct {
 	BaseModel
 	ProjectID        string `gorm:"index;not null" json:"project_id"`
 	Key              string `gorm:"not null" json:"key"`
 	ValueEncrypted   string `gorm:"not null" json:"-"`
 	IsSystemInjected bool   `gorm:"default:false" json:"is_system_injected"`
+	Scope            string `gorm:"default:'both';not null" json:"scope"` // "build", "runtime", "both"
+	IsSecret         bool   `json:"is_secret"`
+}
+
+func (e EnvironmentVariable) IsBuildScope() bool {
+	return e.Scope == ScopeBuild || e.Scope == ScopeBoth || e.Scope == ""
+}
+
+func (e EnvironmentVariable) IsRuntimeScope() bool {
+	return e.Scope == ScopeRuntime || e.Scope == ScopeBoth || e.Scope == ""
 }
 
 type Volume struct {
@@ -152,11 +168,15 @@ type AIRemediation struct {
 type MarketplaceService struct {
 	BaseModel
 	UserID               string `gorm:"index;not null" json:"user_id"`
-	ServiceName          string `gorm:"not null" json:"service_name"` // "postgresql", "mysql", "redis"
+	ServiceName          string `gorm:"not null" json:"service_name"` // "postgresql", "mysql", "redis", "sqlite"
+	DisplayName          string `json:"display_name"`
+	EngineVersion        string `json:"engine_version"`
 	ContainerID          string `json:"container_id"`
 	InternalHostname     string `json:"internal_hostname"`
 	InternalPort         int    `json:"internal_port"`
 	CredentialsEncrypted string `gorm:"type:text" json:"-"`
 	VolumeHostPath       string `json:"volume_host_path"`
+	ExposeHostPort       bool   `gorm:"default:false" json:"expose_host_port"`
+	HostPort             int    `gorm:"default:0" json:"host_port"`
 	Status               string `gorm:"default:'running'" json:"status"`
 }
