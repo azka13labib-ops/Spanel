@@ -59,18 +59,13 @@ func NewUpdater(repoOwner, repoName string) *Updater {
 		repoOwner: repoOwner,
 		repoName:  repoName,
 		client: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: 5 * time.Second,
 		},
 		cacheTTL: 30 * time.Minute,
 	}
 }
 
-// CompareSemver compares two semantic versions (e.g. "v1.0.0" and "v1.1.0").
-// Returns:
-//
-//	-1 if v1 < v2
-//	 0 if v1 == v2
-//	 1 if v1 > v2
+
 func CompareSemver(v1, v2 string) int {
 	clean1 := strings.TrimPrefix(strings.TrimSpace(v1), "v")
 	clean2 := strings.TrimPrefix(strings.TrimSpace(v2), "v")
@@ -122,18 +117,19 @@ func (u *Updater) CheckUpdate(force bool) (*VersionInfo, error) {
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("User-Agent", fmt.Sprintf("sPanel-Updater/%s (%s; %s)", config.Version, runtime.GOOS, runtime.GOARCH))
 
+	if ghToken := os.Getenv("SPANEL_GITHUB_TOKEN"); ghToken != "" {
+		req.Header.Set("Authorization", "Bearer "+ghToken)
+	} else if ghToken := os.Getenv("GITHUB_TOKEN"); ghToken != "" {
+		req.Header.Set("Authorization", "Bearer "+ghToken)
+	}
+
 	resp, err := u.client.Do(req)
 	if err != nil {
 		// If offline or network error, return existing cache if available
 		if u.cached != nil {
 			return u.cached, nil
 		}
-		return &VersionInfo{
-			CurrentVersion: config.Version,
-			LatestVersion:  config.Version,
-			HasUpdate:      false,
-			CheckedAt:      time.Now().Format(time.RFC3339),
-		}, nil
+		return nil, fmt.Errorf("gagal terhubung ke GitHub Releases: %w", err)
 	}
 	defer resp.Body.Close()
 

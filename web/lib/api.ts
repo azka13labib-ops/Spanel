@@ -36,8 +36,8 @@ async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<R
 
   const res = await fetch(input, config);
 
-  if ((res.status === 401 || res.status === 503) && typeof window !== "undefined") {
-    // Notify the UI to show the Login Screen (or Setup Screen for 503)
+  if (res.status === 401 && typeof window !== "undefined") {
+    // Notify the UI to show the Login Screen
     authEvent?.dispatchEvent(new Event("unauthorized"));
   }
   return res;

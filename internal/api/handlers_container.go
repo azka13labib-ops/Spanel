@@ -39,11 +39,13 @@ func (s *Server) handleListContainers(c *fiber.Ctx) error {
 	cmd := exec.Command("docker", "ps", "-a", "--format", "{{json .}}")
 	out, err := cmd.Output()
 	if err != nil {
-		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"error":      "DOCKER_UNAVAILABLE",
-			"message":    "Docker daemon is not running or not reachable on this host",
-			"containers": []ContainerInfo{},
-		})
+		// Fallback to active containers if -a encounters dangling or corrupted metadata
+		cmdRunning := exec.Command("docker", "ps", "--format", "{{json .}}")
+		if fallbackOut, fallbackErr := cmdRunning.Output(); fallbackErr == nil {
+			out = fallbackOut
+		} else {
+			return c.JSON([]ContainerInfo{})
+		}
 	}
 
 	var projects []db.Project

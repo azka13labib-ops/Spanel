@@ -42,6 +42,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
       const res = await checkForUpdates();
       if (res) {
         onVersionUpdated(res);
+      } else {
+        setErrorMsg("Gagal memeriksa ke GitHub Releases (koneksi lambat atau limit rate GitHub).");
       }
     } catch (err) {
       setErrorMsg((err as Error).message || "Gagal memeriksa pembaruan");

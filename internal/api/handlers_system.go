@@ -105,8 +105,12 @@ func (s *Server) handleSystemMetrics(c *fiber.Ctx) error {
 func (s *Server) handleGetVersion(c *fiber.Ctx) error {
 	info, err := s.updater.CheckUpdate(false)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
+		return c.JSON(fiber.Map{
+			"current_version": config.Version,
+			"latest_version":  config.Version,
+			"has_update":      false,
+			"checked_at":      time.Now().Format(time.RFC3339),
+			"error":           err.Error(),
 		})
 	}
 	return c.JSON(info)
