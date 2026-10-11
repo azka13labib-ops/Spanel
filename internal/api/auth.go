@@ -165,6 +165,11 @@ func (s *Server) isMatchingOrigin(originURL string, effectiveHost string) bool {
 // Deliberate plaintext HTTP requires SPANEL_ALLOW_INSECURE_HTTP=true.
 func (s *Server) requireSecureTransport() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		// Health check endpoint is public and exempt from HTTPS requirement for liveness probes
+		if c.Path() == "/api/health" {
+			return c.Next()
+		}
+
 		if s.isHTTPSRequest(c) {
 			return c.Next()
 		}
