@@ -88,11 +88,9 @@ export const GraphiteTerminal: React.FC<GraphiteTerminalProps> = ({
     setConnectionStatus("connecting");
     setErrorMessage(null);
 
-    // Dynamically import xterm to avoid SSR issues
     const { Terminal } = await import("@xterm/xterm");
     const { FitAddon } = await import("@xterm/addon-fit");
 
-    // Clean up previous instance if any
     if (termRef.current) {
       termRef.current.dispose();
       termRef.current = null;
@@ -127,14 +125,12 @@ export const GraphiteTerminal: React.FC<GraphiteTerminalProps> = ({
     const initialRows = term.rows || 24;
     setDimensions({ cols: initialCols, rows: initialRows });
 
-    // Connect WebSocket
     const wsUrl = getWebSocketUrl(`/ws/terminal/${encodeURIComponent(project.id || project.name)}`);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
       setConnectionStatus("connected");
-      // Send initial dimensions
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
       }

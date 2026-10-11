@@ -698,3 +698,22 @@ export async function triggerSelfUpdate(): Promise<{ ok: boolean; message?: stri
     return { ok: false, error: (err as Error).message || "Koneksi terputus saat proses pembaruan" };
   }
 }
+
+export async function askDocsAI(question: string): Promise<{ ok: boolean; answer: string; provider: string; error?: string }> {
+  try {
+    const res = await fetch("/api/docs/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ question }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { ok: true, answer: data.answer, provider: data.provider || "knowledge_base" };
+    }
+    const errData = await res.json().catch(() => ({}));
+    return { ok: false, answer: "", provider: "none", error: errData.error || "Gagal menghubungi asisten AI" };
+  } catch (err) {
+    return { ok: false, answer: "", provider: "none", error: (err as Error).message || "Koneksi terputus" };
+  }
+}

@@ -89,6 +89,7 @@ func (s *Server) setupRoutes() {
 	apiGroup.Get("/system/version", s.handleGetVersion)
 	apiGroup.Post("/system/check-update", s.handleCheckUpdate)
 	apiGroup.Post("/system/self-update", s.handleSelfUpdate)
+	apiGroup.Post("/docs/chat", s.handleDocsChat)
 
 	// Projects
 	apiGroup.Get("/projects", s.handleListProjects)

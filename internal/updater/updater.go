@@ -241,7 +241,6 @@ func (u *Updater) PerformSelfUpdate() error {
 
 	log.Printf("[UPDATER] Downloading update from %s to update %s...", downloadURL, currentExec)
 
-	// Download new binary to temporary file
 	tempFile := currentExec + ".new"
 	out, err := os.OpenFile(tempFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
@@ -269,7 +268,6 @@ func (u *Updater) PerformSelfUpdate() error {
 	}
 	out.Close()
 
-	// Verify header of new file (must be ELF)
 	headerBytes := make([]byte, 4)
 	f, err := os.Open(tempFile)
 	if err == nil {
@@ -281,17 +279,14 @@ func (u *Updater) PerformSelfUpdate() error {
 		return fmt.Errorf("downloaded file is not a valid Linux ELF executable")
 	}
 
-	// Rename current executable to .old and move .new to currentExec
 	oldBackup := currentExec + ".old"
-	_ = os.Remove(oldBackup) // Remove any previous backup
-
+	_ = os.Remove(oldBackup) 
 	if err := os.Rename(currentExec, oldBackup); err != nil {
 		_ = os.Remove(tempFile)
 		return fmt.Errorf("failed to backup current binary: %w", err)
 	}
 
 	if err := os.Rename(tempFile, currentExec); err != nil {
-		// Rollback if possible
 		_ = os.Rename(oldBackup, currentExec)
 		return fmt.Errorf("failed to replace binary with updated version: %w", err)
 	}
@@ -299,10 +294,8 @@ func (u *Updater) PerformSelfUpdate() error {
 	_ = os.Chmod(currentExec, 0755)
 	log.Printf("[UPDATER] Successfully replaced binary with %s. Triggering service restart...", release.TagName)
 
-	// Trigger restart in background
 	go func() {
 		time.Sleep(1 * time.Second)
-		// Try systemctl restart spanel
 		cmd := exec.Command("systemctl", "restart", "spanel")
 		if err := cmd.Start(); err != nil {
 			log.Printf("[UPDATER] systemctl restart returned %v; exiting process for systemd supervisor restart", err)

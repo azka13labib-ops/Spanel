@@ -201,8 +201,8 @@ func (s *Server) requireCSRFProtection() fiber.Handler {
 		}
 
 		path := c.Path()
-		// Webhook callbacks are external and authenticated via cryptographic HMAC signature
-		if path == "/api/webhooks/github" || (strings.HasPrefix(path, "/api/projects/") && strings.HasSuffix(path, "/webhook")) {
+		// Webhook callbacks and documentation chat are public endpoints
+		if path == "/api/webhooks/github" || path == "/api/docs/chat" || (strings.HasPrefix(path, "/api/projects/") && strings.HasSuffix(path, "/webhook")) {
 			return c.Next()
 		}
 
@@ -267,6 +267,7 @@ func (s *Server) requireAuth() fiber.Handler {
 		if path == "/api/health" ||
 			path == "/api/setup" ||
 			path == "/api/auth/login" ||
+			path == "/api/docs/chat" ||
 			path == "/api/webhooks/github" ||
 			(strings.HasPrefix(path, "/api/projects/") && strings.HasSuffix(path, "/webhook")) {
 			return c.Next()
