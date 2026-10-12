@@ -1,5 +1,5 @@
 import React from "react";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Check } from "lucide-react";
 
 export const ServerHygieneView: React.FC = () => {
   return (
@@ -21,8 +21,14 @@ export const ServerHygieneView: React.FC = () => {
         <div className="bg-black/40 rounded-xl p-4 font-mono text-xs text-slate-300 space-y-2 border border-white/5">
           <p className="text-slate-500">{"// Janitor command executed automatically:"}</p>
           <p className="text-cyan-300">docker image prune -af --filter &quot;until=168h&quot;</p>
-          <p className="text-emerald-400">✓ SQLite WAL Checkpointed safely (0 locked writes)</p>
-          <p className="text-slate-400">✓ Log retention policy: Purge stderr archives &gt; 30 days</p>
+          <p className="text-emerald-400 flex items-center gap-1.5">
+            <Check className="w-3.5 h-3.5" />
+            <span>SQLite WAL Checkpointed safely (0 locked writes)</span>
+          </p>
+          <p className="text-slate-400 flex items-center gap-1.5">
+            <Check className="w-3.5 h-3.5" />
+            <span>Log retention policy: Purge stderr archives &gt; 30 days</span>
+          </p>
         </div>
       </div>
     </div>

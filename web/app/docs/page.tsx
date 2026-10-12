@@ -23,6 +23,7 @@ import {
   Rocket,
   KeyRound,
   AlertTriangle,
+  Lightbulb,
 } from "lucide-react";
 import {
   DOCS_CATEGORIES,
@@ -668,9 +669,10 @@ export default function DocsPage() {
                         `Bagaimana cara implementasi terbaik untuk: ${currentSection.title}?`
                       )
                     }
-                    className="px-2.5 py-1 rounded-md text-[11px] bg-white border border-indigo-200 text-indigo-900 hover:bg-indigo-50 transition cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] bg-white border border-indigo-200 text-indigo-900 hover:bg-indigo-50 transition cursor-pointer"
                   >
-                    💡 Contoh implementasi terbaik?
+                    <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>Contoh implementasi terbaik?</span>
                   </button>
                   <button
                     onClick={() =>
@@ -678,9 +680,10 @@ export default function DocsPage() {
                         `Apa saja error umum atau hal yang sering salah saat mengonfigurasi ${currentSection.title}?`
                       )
                     }
-                    className="px-2.5 py-1 rounded-md text-[11px] bg-white border border-indigo-200 text-indigo-900 hover:bg-indigo-50 transition cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] bg-white border border-indigo-200 text-indigo-900 hover:bg-indigo-50 transition cursor-pointer"
                   >
-                    ⚠️ Troubleshooting & Error umum?
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>Troubleshooting &amp; Error umum?</span>
                   </button>
                 </div>
               </div>

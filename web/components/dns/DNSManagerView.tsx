@@ -12,6 +12,7 @@ import {
   Zap,
   Lock,
   ChevronDown,
+  Cloud,
 } from "lucide-react";
 import { DNSConfig, CloudflareZone, DNSRecordItem } from "@/types";
 import {
@@ -585,8 +586,9 @@ export const DNSManagerView: React.FC<DNSManagerViewProps> = ({ hostIp }) => {
                   onChange={(e) => setRecordProxied(e.target.checked)}
                   className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 />
-                <span className={recordProxied ? "font-bold text-orange-600" : "text-gray-500"}>
-                  {recordProxied ? "Proxied ☁️" : "DNS Only ☁️"}
+                <span className={`inline-flex items-center gap-1 ${recordProxied ? "font-bold text-orange-600" : "text-gray-500"}`}>
+                  <Cloud className="w-3.5 h-3.5" />
+                  <span>{recordProxied ? "Proxied" : "DNS Only"}</span>
                 </span>
               </label>
             </div>

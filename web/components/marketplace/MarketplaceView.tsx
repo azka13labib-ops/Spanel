@@ -22,6 +22,7 @@ import {
   FolderGit2,
   ShieldCheck,
   FileCode2,
+  X,
 } from "lucide-react";
 import {
   MarketplaceTemplate,
@@ -203,7 +204,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ projects }) =>
     try {
       const res = await installMarketplaceService(provisionForm);
       if (res.ok && res.data) {
-        showToast("success", `✓ Database ${res.data.service.display_name || res.data.service.service_name} successfully provisioned!`);
+        showToast("success", `Database ${res.data.service.display_name || res.data.service.service_name} successfully provisioned!`);
         setProvisionTemplate(null);
         await loadServices();
         if (res.data.credentials) {
@@ -240,7 +241,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ projects }) =>
     try {
       const res = await restartMarketplaceService(svc.id);
       if (res.ok) {
-        showToast("success", `✓ Container ${svc.container_id} restarted (${res.status})`);
+        showToast("success", `Container ${svc.container_id} restarted (${res.status})`);
         await loadServices();
       } else {
         showToast("error", res.error || "Failed to restart container");
@@ -261,7 +262,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ projects }) =>
         const targetProj = projects.find((p) => p.id === selectedProjectId);
         showToast(
           "success",
-          `✓ Connected ${attachService.service_name.toUpperCase()} to ${targetProj?.name || "project"}! Framework env variables injected.`
+          `Connected ${attachService.service_name.toUpperCase()} to ${targetProj?.name || "project"}! Framework env variables injected.`
         );
         setAttachService(null);
         await loadServices();
@@ -280,7 +281,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ projects }) =>
     try {
       const res = await deleteMarketplaceService(deleteTarget.id);
       if (res.ok) {
-        showToast("success", `✓ Database container ${deleteTarget.container_id} removed`);
+        showToast("success", `Database container ${deleteTarget.container_id} removed`);
         setDeleteTarget(null);
         await loadServices();
       } else {
@@ -670,7 +671,7 @@ SQLITE_PATH=/data/sqlite.db`;
                 onClick={() => setProvisionTemplate(null)}
                 className="text-gray-400 hover:text-gray-600 p-1 rounded-md transition cursor-pointer"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -863,7 +864,7 @@ SQLITE_PATH=/data/sqlite.db`;
                 onClick={() => setViewCreds(null)}
                 className="text-gray-400 hover:text-gray-600 p-1 rounded-md transition cursor-pointer"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -1016,7 +1017,7 @@ SQLITE_PATH=/data/sqlite.db`;
                 onClick={() => setAttachService(null)}
                 className="text-gray-400 hover:text-gray-600 p-1 rounded-md transition cursor-pointer"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 

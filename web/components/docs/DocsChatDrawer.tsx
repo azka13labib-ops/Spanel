@@ -111,9 +111,15 @@ export const DocsChatDrawer: React.FC<DocsChatDrawerProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  const sentInitialRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (initialQuestion && initialQuestion.trim()) {
-      handleSend(initialQuestion);
+    if (initialQuestion && initialQuestion.trim() && sentInitialRef.current !== initialQuestion) {
+      sentInitialRef.current = initialQuestion;
+      const timer = setTimeout(() => {
+        handleSend(initialQuestion);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [initialQuestion, handleSend]);
 
@@ -240,12 +246,15 @@ export const DocsChatDrawer: React.FC<DocsChatDrawerProps> = ({
                   {/* AI Message Footer: Provider & Copy */}
                   {!isUser && (
                     <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-400">
-                      <span className="font-mono">
-                        {msg.provider === "gemini"
-                          ? "✦ Gemini 1.5 Flash"
-                          : msg.provider === "openai"
-                          ? "✦ GPT-4o Mini"
-                          : "✦ sPanel Verified Docs"}
+                      <span className="font-mono flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-indigo-500 shrink-0" />
+                        <span>
+                          {msg.provider === "gemini"
+                            ? "Gemini 1.5 Flash"
+                            : msg.provider === "openai"
+                            ? "GPT-4o Mini"
+                            : "sPanel Verified Docs"}
+                        </span>
                       </span>
                       <button
                         onClick={() => handleCopy(msg.id, msg.text)}

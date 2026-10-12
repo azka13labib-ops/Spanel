@@ -80,13 +80,13 @@ export function DatabaseBackupModal({
       if (res.ok) {
         setMessage({
           type: "success",
-          text: `✓ Snapshot created successfully: ${res.data?.filename}`,
+          text: `Snapshot created successfully: ${res.data?.filename}`,
         });
         await loadBackups();
       } else {
         setMessage({
           type: "error",
-          text: `❌ Failed to create snapshot: ${res.error}`,
+          text: `Failed to create snapshot: ${res.error}`,
         });
       }
     } finally {
@@ -110,12 +110,12 @@ export function DatabaseBackupModal({
       if (res.ok) {
         setMessage({
           type: "success",
-          text: `✓ Database successfully restored from snapshot "${filename}"`,
+          text: `Database successfully restored from snapshot "${filename}"`,
         });
       } else {
         setMessage({
           type: "error",
-          text: `❌ Restore failed: ${res.error}`,
+          text: `Restore failed: ${res.error}`,
         });
       }
     } finally {

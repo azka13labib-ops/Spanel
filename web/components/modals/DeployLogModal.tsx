@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Loader2,
   Layers,
+  ChevronRight,
 } from "lucide-react";
 
 interface DeployLogModalProps {
@@ -198,7 +199,7 @@ export const DeployLogModal: React.FC<DeployLogModalProps> = ({
                     : "bg-gray-300 text-gray-600"
                 }`}
               >
-                {stage.done ? "✓" : i + 1}
+                {stage.done ? <Check className="w-2.5 h-2.5 stroke-3" /> : i + 1}
               </span>
               <span
                 className={`font-medium ${
@@ -211,7 +212,7 @@ export const DeployLogModal: React.FC<DeployLogModalProps> = ({
               >
                 {stage.label}
               </span>
-              {i < stages.length - 1 && <span className="text-gray-300 select-none ml-2">→</span>}
+              {i < stages.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-gray-300 ml-2" />}
             </div>
           ))}
         </div>
@@ -219,7 +220,7 @@ export const DeployLogModal: React.FC<DeployLogModalProps> = ({
         {/* Terminal Window */}
         <div
           ref={terminalContainerRef}
-          className="p-4 bg-gray-950 font-mono text-xs text-gray-200 overflow-y-auto space-y-1 flex-1 min-h-[380px] max-h-[550px] selection:bg-indigo-800 selection:text-white"
+          className="p-4 bg-gray-950 font-mono text-xs text-gray-200 overflow-y-auto space-y-1 flex-1 min-h-95 max-h-137.5 selection:bg-indigo-800 selection:text-white"
         >
           {filteredLogs.length === 0 ? (
             <div className="text-center py-16 text-gray-500">

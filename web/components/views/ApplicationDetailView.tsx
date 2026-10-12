@@ -16,6 +16,7 @@ import {
   Settings,
   ShieldCheck,
   GitBranch,
+  Check,
 } from "lucide-react";
 import { Project } from "@/types";
 import { GraphiteTerminal } from "@/components/terminal/GraphiteTerminal";
@@ -407,7 +408,10 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
           </div>
 
           <div className="bg-[#0B1020] text-gray-300 font-mono text-xs p-4 rounded-xl border border-[#263244] h-80 overflow-y-auto space-y-1">
-            <div className="text-emerald-400">✓ Connected to container spanel-app-{project.name} stdout</div>
+            <div className="text-emerald-400 flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5" />
+              <span>Connected to container spanel-app-{project.name} stdout</span>
+            </div>
             <div className="text-gray-400">[info] Ready for requests on port {project.target_port || 3000}</div>
             <div className="text-gray-500">Stream logs in real-time using the dedicated log viewer.</div>
           </div>

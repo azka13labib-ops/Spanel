@@ -15,6 +15,7 @@ import {
   Lock,
   Cpu,
   Zap,
+  Lightbulb,
 } from "lucide-react";
 import { AIConfig } from "@/types";
 import { fetchAIConfig, saveAIConfig, deleteAIConfig, testAIConfig } from "@/lib/api";
@@ -329,11 +330,16 @@ export const AIAssistantView: React.FC = () => {
                 {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            <p className="text-[11px] text-gray-400">
-              {config?.is_configured && !apiKey
-                ? "💡 API Key sudah tersimpan di database. Anda bisa langsung menekan tombol 'Test Koneksi' di bawah untuk menguji."
-                : "Kunci API hanya disimpan di server pribadi Anda dan tidak akan pernah dibagikan ke pihak ketiga."}
-            </p>
+            <div className="text-[11px] text-gray-400 flex items-center gap-1.5">
+              {config?.is_configured && !apiKey ? (
+                <>
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>API Key sudah tersimpan di database. Anda bisa langsung menekan tombol &apos;Test Koneksi&apos; di bawah untuk menguji.</span>
+                </>
+              ) : (
+                <span>Kunci API hanya disimpan di server pribadi Anda dan tidak akan pernah dibagikan ke pihak ketiga.</span>
+              )}
+            </div>
           </div>
 
           {/* Test Result Message */}

@@ -15,6 +15,7 @@ import {
   AlertCircle,
   CheckCircle2,
   HelpCircle,
+  Lightbulb,
 } from "lucide-react";
 import { deleteProject, updateProject, updateProjectDomain, verifyProjectDomain } from "@/lib/api";
 
@@ -238,7 +239,8 @@ export function ProjectSettingsModal({
               {showGuide && (
                 <div className="p-4 bg-indigo-50/70 border border-indigo-200/80 rounded-xl space-y-2.5 text-xs text-indigo-950 animate-in fade-in">
                   <p className="font-bold flex items-center gap-1.5 text-indigo-900">
-                    <span>💡 Cara Pasang Domain (.com, .my.id, .id, dll):</span>
+                    <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>Cara Pasang Domain (.com, .my.id, .id, dll):</span>
                   </p>
                   <ol className="list-decimal list-inside space-y-1.5 text-[11px] leading-relaxed text-indigo-900/90">
                     <li>

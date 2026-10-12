@@ -13,6 +13,7 @@ import {
   FolderGit2,
   Trash2,
   AlertCircle,
+  X,
 } from "lucide-react";
 import { GithubIcon } from "@/components/icons/GithubIcon";
 import { GitHubRepo, GitHubStatus, Project } from "@/types";
@@ -200,7 +201,7 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
                 }}
                 className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 cursor-pointer"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -450,7 +451,7 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
                   onClick={onClose}
                   className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition cursor-pointer"
                 >
-                  ✕
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 

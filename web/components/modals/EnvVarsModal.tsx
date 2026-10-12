@@ -12,6 +12,7 @@ import {
   List,
   AlertTriangle,
   Play,
+  X,
 } from "lucide-react";
 import { Project, EnvVarItem } from "@/types";
 import {
@@ -109,7 +110,7 @@ export const EnvVarsModal: React.FC<EnvVarsModalProps> = ({
       setRawEnv("");
       setActiveMode("list");
       await loadEnvVars();
-      alert(`✓ ${res.count || 0} environment variables berhasil disimpan!`);
+      alert(`${res.count || 0} environment variables berhasil disimpan!`);
     } else {
       alert(res.error || "Gagal menyimpan bulk variables");
     }
@@ -169,7 +170,7 @@ export const EnvVarsModal: React.FC<EnvVarsModalProps> = ({
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-md transition cursor-pointer">
-            ✕
+            <X className="w-5 h-5" />
           </button>
         </div>
 

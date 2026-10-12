@@ -33,7 +33,7 @@ export const DOCS_CATEGORIES: DocCategory[] = [
 
 **sPanel** adalah platform self-hosted PaaS modern yang dirancang untuk menjalankan dan mengelola aplikasi web serta database di infrastruktur Linux VPS dengan pengalaman semulus Vercel dan ketangguhan sekelas Coolify.
 
-#### 🏛️ Pilar Arsitektur Utama
+#### Pilar Arsitektur Utama
 - **True Single-Binary Distribution:** Backend Go (Fiber) menyajikan REST API, WebSockets, dan seluruh aset frontend Next.js yang di-embed langsung ke dalam satu binary Linux. Tidak membutuhkan runtime Node.js di host server.
 - **Embedded Database & Concurrency:** Menggunakan SQLite dengan driver WAL mode (\`journal_mode=WAL; busy_timeout=5000;\`) sehingga read (dashboard) dan write (antrean build) berjalan paralel bebas lock \`SQLITE_BUSY\`.
 - **Ephemeral Sandbox Builder:** Nixpacks dieksekusi di dalam container terisolasi (\`nixpacks/nixpacks\`) tanpa risiko skrip instalasi merusak host server.
@@ -171,7 +171,7 @@ sPanel mengintegrasikan alur deployment modern langsung dari GitHub:
 4. Setelah respon 2xx terverifikasi stabil, Traefik seketika mengalihkan rute traffic ke container v2.
 5. Container v1 dinonaktifkan secara anggun (*graceful shutdown*).
 
-#### ⚡ Instant Rollback 1-Klik
+#### Instant Rollback 1-Klik
 Setiap deployment sukses menyimpan \`image_hash\` ke dalam riwayat deployment. Jika rilis terbaru mengalami kendala fungsional:
 - Buka tab **Deployments**.
 - Klik tombol **Rollback** pada versi stabil sebelumnya.
@@ -227,7 +227,7 @@ sPanel membedakan secara tegas scope variabel lingkungan untuk mencegah kebocora
 | **Visibilitas** | Ter-bundle ke dalam JS statis browser | Hanya tersimpan di memory container server |
 | **Penerapan Nilai Baru** | **Harus Rebuild** aplikasi | Cukup **Restart Container** |
 
-#### ⚠️ Peringatan untuk Pengembang Next.js
+#### Peringatan untuk Pengembang Next.js
 Variabel dengan awalan \`NEXT_PUBLIC_\` dievaluasi dan di-hardcode ke dalam file static JS saat compile time. Jika Anda mengubah nilainya, pastikan menekan tombol **Rebuild** di sPanel agar bundle statis dibuat ulang dengan nilai terbaru!
         `,
       },
@@ -269,7 +269,7 @@ sPanel menyediakan database siap pakai dalam satu klik melalui menu **Marketplac
 - **Redis 7.2:** Port internal \`6379\`, in-memory key-value cache dan queue backend.
 - **SQLite:** Embedded file-based storage langsung di volume aplikasi.
 
-#### 📁 Persistent Volumes
+#### Persistent Volumes
 Data database disimpan pada folder host terisolasi (\`./data/services/<id>/data\`). Mematikan atau memperbarui container database tidak akan menghapus data Anda.
         `,
       },
