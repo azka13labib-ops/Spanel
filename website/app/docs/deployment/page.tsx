@@ -1,43 +1,42 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import {
-  BookOpen,
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
-  GitBranch,
-  Terminal,
-  Layers,
-  ExternalLink,
-  ShieldAlert,
-  Info,
+  Lightbulb,
 } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function DeploymentGuidePage() {
+  const { t } = useLanguage();
+
   const steps = [
     {
       number: "1",
-      title: "Create a New Application",
-      description: "Navigate to Applications in the sPanel dashboard, click '+ New Application', and select GitHub as the deployment source.",
-      details: "sPanel will query your authorized repositories and display available projects.",
+      title: t("deploy.step1_title"),
+      description: t("deploy.step1_desc"),
+      details: t("deploy.step1_detail"),
     },
     {
       number: "2",
-      title: "Choose Repository & Branch",
-      description: "Select your GitHub repository from the dropdown and specify the branch you want to track (e.g. main or production).",
-      details: "You can also specify a custom root directory if your project is structured as a monorepo.",
+      title: t("deploy.step2_title"),
+      description: t("deploy.step2_desc"),
+      details: t("deploy.step2_detail"),
     },
     {
       number: "3",
-      title: "Configure Build Settings & Environment",
-      description: "Set the framework detection preset (or let Nixpacks detect automatically), specify runtime ports, and inject environment variables.",
-      details: "If your project requires a database, click 'Attach Database' to automatically link PostgreSQL, MySQL, or Redis.",
+      title: t("deploy.step3_title"),
+      description: t("deploy.step3_desc"),
+      details: t("deploy.step3_detail"),
     },
     {
       number: "4",
-      title: "Trigger Deployment",
-      description: "Click 'Deploy Application'. sPanel will trigger an ephemeral Nixpacks build container and stream live logs directly to your browser.",
-      details: "Once the container responds to HTTP health checks, Traefik routes incoming traffic with zero downtime.",
+      title: t("deploy.step4_title"),
+      description: t("deploy.step4_desc"),
+      details: t("deploy.step4_detail"),
     },
   ];
 
@@ -47,19 +46,19 @@ export default function DeploymentGuidePage() {
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-xs text-slate-500">
           <Link href="/docs/" className="hover:text-slate-900 transition">
-            Documentation
+            {t("docs.breadcrumb_root")}
           </Link>
           <span>&gt;</span>
-          <span className="text-slate-900 font-semibold">Deployment Guide</span>
+          <span className="text-slate-900 font-semibold">{t("deploy.breadcrumb")}</span>
         </nav>
 
         {/* Header */}
         <div className="space-y-2">
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Deployment Guide
+            {t("deploy.title")}
           </h1>
           <p className="text-sm text-slate-600 leading-relaxed">
-            Learn how to deploy your application from GitHub using sPanel with zero-downtime traffic switching.
+            {t("deploy.subtitle")}
           </p>
         </div>
 
@@ -67,20 +66,20 @@ export default function DeploymentGuidePage() {
         <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-indigo-600" />
-            <span>Prerequisites</span>
+            <span>{t("deploy.prerequisites")}</span>
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2.5 text-xs text-slate-700 font-medium">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>1. Connected GitHub account</span>
+              <span>{t("deploy.prereq_1")}</span>
             </div>
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2.5 text-xs text-slate-700 font-medium">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>2. Application repository ready</span>
+              <span>{t("deploy.prereq_2")}</span>
             </div>
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2.5 text-xs text-slate-700 font-medium">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>3. sPanel installed and active</span>
+              <span>{t("deploy.prereq_3")}</span>
             </div>
           </div>
         </div>
@@ -103,9 +102,10 @@ export default function DeploymentGuidePage() {
               <p className="text-xs text-slate-600 leading-relaxed pl-11">
                 {step.description}
               </p>
-              <p className="text-[11px] text-slate-500 leading-relaxed pl-11 border-t border-slate-100 pt-2 font-mono">
-                💡 {step.details}
-              </p>
+              <div className="flex items-center gap-2 text-[11px] text-slate-500 leading-relaxed pl-11 border-t border-slate-100 pt-2 font-mono">
+                <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span>{step.details}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -114,12 +114,12 @@ export default function DeploymentGuidePage() {
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-3">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
           <div>
-            <span className="font-semibold">Automatic Staging URL: </span>
-            <span>Your application will be instantly available at the configured domain (or </span>
+            <span className="font-semibold">{t("deploy.staging_title")}</span>
+            <span>{t("deploy.staging_desc_prefix")}</span>
             <code className="font-mono bg-emerald-100 px-1 py-0.5 rounded text-emerald-900 font-bold">
               &lt;app&gt;.&lt;ip&gt;.sslip.io
             </code>
-            <span>) after the deployment health checks pass.</span>
+            <span>{t("deploy.staging_desc_suffix")}</span>
           </div>
         </div>
 
@@ -130,13 +130,13 @@ export default function DeploymentGuidePage() {
             className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Overview</span>
+            <span>{t("deploy.back_btn")}</span>
           </Link>
           <Link
             href="/installation/"
             className="flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition"
           >
-            <span>Installation Guide</span>
+            <span>{t("deploy.install_btn")}</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

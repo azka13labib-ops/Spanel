@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -22,55 +24,58 @@ import {
   ExternalLink,
   Code2,
 } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function HomePage() {
+  const { t } = useLanguage();
+
   const features = [
     {
       icon: GitBranch,
-      title: "GitHub Integration",
-      description: "Connect your GitHub repositories, choose branches, and trigger automated deployments on push.",
+      title: t("home.feat1_title"),
+      description: t("home.feat1_desc"),
       badge: "Verified",
     },
     {
       icon: Search,
-      title: "Framework Detection",
-      description: "Automatically detect and build Next.js, Node.js, Laravel, Python FastAPI, Go, and static HTML apps.",
+      title: t("home.feat2_title"),
+      description: t("home.feat2_desc"),
       badge: "Nixpacks",
     },
     {
       icon: Box,
-      title: "Multi-Service Stacks",
-      description: "Run frontend, backend API, relational databases, and Redis caches together in isolated bridge networks.",
+      title: t("home.feat3_title"),
+      description: t("home.feat3_desc"),
       badge: "Docker Net",
     },
     {
       icon: Database,
-      title: "Database Management",
-      description: "Provision PostgreSQL 16, MySQL 8, Redis 7, or SQLite in one click with persistent host volumes.",
+      title: t("home.feat4_title"),
+      description: t("home.feat4_desc"),
       badge: "1-Click",
     },
     {
       icon: Globe,
-      title: "Domains & HTTPS",
-      description: "Instant staging URLs via sslip.io and automatic Let's Encrypt TLS certificates for custom domains.",
+      title: t("home.feat5_title"),
+      description: t("home.feat5_desc"),
       badge: "Traefik",
     },
     {
       icon: Activity,
-      title: "Monitoring & Logs",
-      description: "Real-time streaming container logs and live CPU, RAM, and disk utilization metrics via WebSockets.",
+      title: t("home.feat6_title"),
+      description: t("home.feat6_desc"),
       badge: "Live SSE",
     },
     {
       icon: Shield,
-      title: "Secret Encryption",
-      description: "Military-grade AES-256-GCM encryption for all sensitive environment variables and API tokens.",
+      title: t("home.feat7_title"),
+      description: t("home.feat7_desc"),
       badge: "AES-256",
     },
     {
       icon: Terminal,
-      title: "Container Terminal",
-      description: "Direct web-based interactive xterm.js shell terminal into running containers without SSH context switching.",
+      title: t("home.feat8_title"),
+      description: t("home.feat8_desc"),
       badge: "WebShell",
     },
   ];
@@ -78,23 +83,23 @@ export default function HomePage() {
   const steps = [
     {
       number: "1",
-      title: "Install sPanel",
-      description: "Run the single binary or systemd service on your Ubuntu 22.04+ or Debian 12 VPS.",
+      title: t("home.step1_title"),
+      description: t("home.step1_desc"),
     },
     {
       number: "2",
-      title: "Connect GitHub",
-      description: "Authorize your GitHub account and select the application repository and target branch.",
+      title: t("home.step2_title"),
+      description: t("home.step2_desc"),
     },
     {
       number: "3",
-      title: "Configure & Deploy",
-      description: "Set environment variables, attach a database, and let Nixpacks build the container image.",
+      title: t("home.step3_title"),
+      description: t("home.step3_desc"),
     },
     {
       number: "4",
-      title: "Live in Production",
-      description: "Your application is active with automatic SSL, zero-downtime routing, and live metrics.",
+      title: t("home.step4_title"),
+      description: t("home.step4_desc"),
     },
   ];
 
@@ -107,18 +112,18 @@ export default function HomePage() {
             {/* Pill Badge */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs">
               <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
-              <span>Self-hosted PaaS for developers</span>
+              <span>{t("home.badge")}</span>
             </div>
 
             {/* Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.1]">
-              Your servers. Your apps. <br />
-              <span className="text-indigo-600">One control plane.</span>
+              {t("home.hero_title_1")} <br />
+              <span className="text-indigo-600">{t("home.hero_title_2")}</span>
             </h1>
 
             {/* Subtitle */}
             <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto">
-              sPanel is a lightweight, self-hosted Platform as a Service for deploying and managing applications on your own Linux VPS infrastructure with Docker-based execution.
+              {t("home.hero_subtitle")}
             </p>
 
             {/* Primary Actions */}
@@ -127,7 +132,7 @@ export default function HomePage() {
                 href="/installation/"
                 className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow transition active:scale-95"
               >
-                <span>Install sPanel</span>
+                <span>{t("home.btn_install")}</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
@@ -135,7 +140,7 @@ export default function HomePage() {
                 className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 transition"
               >
                 <BookOpen className="w-4 h-4 text-slate-500" />
-                <span>Read Documentation</span>
+                <span>{t("home.btn_docs")}</span>
               </Link>
             </div>
 
@@ -144,22 +149,22 @@ export default function HomePage() {
               <div className="p-3 rounded-lg border border-slate-200/80 bg-slate-50/60 flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">Open Source</h4>
-                  <p className="text-[11px] text-slate-500">Free, community-driven under MIT.</p>
+                  <h4 className="text-xs font-bold text-slate-900">{t("home.pillar1_title")}</h4>
+                  <p className="text-[11px] text-slate-500">{t("home.pillar1_desc")}</p>
                 </div>
               </div>
               <div className="p-3 rounded-lg border border-slate-200/80 bg-slate-50/60 flex items-start gap-2.5">
                 <Shield className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">Self-Hosted</h4>
-                  <p className="text-[11px] text-slate-500">Your servers, your data, your control.</p>
+                  <h4 className="text-xs font-bold text-slate-900">{t("home.pillar2_title")}</h4>
+                  <p className="text-[11px] text-slate-500">{t("home.pillar2_desc")}</p>
                 </div>
               </div>
               <div className="p-3 rounded-lg border border-slate-200/80 bg-slate-50/60 flex items-start gap-2.5">
                 <Server className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">Modern Architecture</h4>
-                  <p className="text-[11px] text-slate-500">Go Fiber + Next.js + Docker SDK.</p>
+                  <h4 className="text-xs font-bold text-slate-900">{t("home.pillar3_title")}</h4>
+                  <p className="text-[11px] text-slate-500">{t("home.pillar3_desc")}</p>
                 </div>
               </div>
             </div>
@@ -180,7 +185,7 @@ export default function HomePage() {
                     </span>
                   </div>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
-                    Production Control Plane
+                    {t("home.preview_badge")}
                   </span>
                 </div>
 
@@ -205,10 +210,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto space-y-3 mb-12">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Powerful Features for Modern Deployments
+              {t("home.features_title")}
             </h2>
             <p className="text-sm sm:text-base text-slate-600">
-              Everything you need to deploy, manage, and scale your applications, all in one place.
+              {t("home.features_subtitle")}
             </p>
           </div>
 
@@ -277,24 +282,24 @@ export default function HomePage() {
             <div className="lg:col-span-5 space-y-6">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950/80 text-indigo-300 border border-indigo-800/80">
                 <Terminal className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Docker-Native Engine</span>
+                <span>{t("home.dark_badge")}</span>
               </div>
 
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
-                Built for developers, <br />
-                <span className="text-indigo-400">by developers.</span>
+                {t("home.dark_title_1")} <br />
+                <span className="text-indigo-400">{t("home.dark_title_2")}</span>
               </h2>
 
               <p className="text-sm text-slate-300 leading-relaxed">
-                sPanel gives you the power and flexibility of Docker, combined with a simple and intuitive interface. Run any stack without vendor lock-in or proprietary cloud dependencies.
+                {t("home.dark_desc")}
               </p>
 
               <div className="space-y-3 pt-2">
                 {[
-                  "Deploy from GitHub in seconds with automatic Nixpacks detection",
-                  "Manage multiple applications, databases, and environment variables",
-                  "Monitor performance, container lifecycle, and live logs in real-time",
-                  "Single-binary Go distribution with zero Node.js runtime required on host",
+                  t("home.dark_check1"),
+                  t("home.dark_check2"),
+                  t("home.dark_check3"),
+                  t("home.dark_check4"),
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-start gap-3 text-xs text-slate-200">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -308,13 +313,13 @@ export default function HomePage() {
                   href="/installation/"
                   className="px-5 py-2.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition shadow-sm"
                 >
-                  Start Installing sPanel
+                  {t("home.dark_btn_install")}
                 </Link>
                 <Link
                   href="/features/"
                   className="px-5 py-2.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition"
                 >
-                  View Feature Matrix
+                  {t("home.dark_btn_features")}
                 </Link>
               </div>
             </div>
@@ -327,10 +332,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto space-y-3 mb-16">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Get Started in Minutes
+              {t("home.steps_title")}
             </h2>
             <p className="text-sm sm:text-base text-slate-600">
-              Install sPanel, connect your GitHub repo, and deploy your first application.
+              {t("home.steps_subtitle")}
             </p>
           </div>
 
@@ -353,7 +358,7 @@ export default function HomePage() {
               href="/installation/"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs hover:shadow transition"
             >
-              <span>View Full Installation Guide</span>
+              <span>{t("home.btn_view_install_guide")}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -366,13 +371,13 @@ export default function HomePage() {
           <div className="max-w-3xl mx-auto space-y-4 text-center mb-12">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-200/80 text-slate-700 font-mono">
               <Code2 className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Architectural Integrity</span>
+              <span>{t("home.arch_badge")}</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Engineered for Production Simplicity
+              {t("home.arch_title")}
             </h2>
             <p className="text-sm text-slate-600 leading-relaxed">
-              sPanel does not add fragile multi-container control planes. The entire system compiles into one Linux binary serving APIs, WebSockets, and embedded frontend assets.
+              {t("home.arch_subtitle")}
             </p>
           </div>
 
@@ -381,9 +386,9 @@ export default function HomePage() {
               <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <Server className="w-4 h-4" />
               </div>
-              <h4 className="text-sm font-bold text-slate-900">Single Go Binary</h4>
+              <h4 className="text-sm font-bold text-slate-900">{t("home.arch1_title")}</h4>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Go Fiber control plane + SQLite in WAL mode. Low memory footprint (~30MB RAM) without external daemon requirements.
+                {t("home.arch1_desc")}
               </p>
             </div>
 
@@ -391,9 +396,9 @@ export default function HomePage() {
               <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <Box className="w-4 h-4" />
               </div>
-              <h4 className="text-sm font-bold text-slate-900">Nixpacks Sandbox</h4>
+              <h4 className="text-sm font-bold text-slate-900">{t("home.arch2_title")}</h4>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Builds run inside ephemeral containers (<code className="font-mono text-indigo-600">nixpacks/nixpacks</code>) preventing untrusted project scripts from touching the host.
+                {t("home.arch2_desc")}
               </p>
             </div>
 
@@ -401,9 +406,9 @@ export default function HomePage() {
               <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <Globe className="w-4 h-4" />
               </div>
-              <h4 className="text-sm font-bold text-slate-900">Traefik Reverse Proxy</h4>
+              <h4 className="text-sm font-bold text-slate-900">{t("home.arch3_title")}</h4>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Automatic Docker label discovery, health check gating before traffic cutover, and Let's Encrypt TLS certificate provisioning.
+                {t("home.arch3_desc")}
               </p>
             </div>
           </div>
@@ -414,10 +419,10 @@ export default function HomePage() {
       <section className="py-16 md:py-20 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Ready to deploy on your own VPS?
+            {t("home.cta_title")}
           </h2>
           <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto leading-relaxed">
-            Take full ownership of your deployment infrastructure with genuine single-binary simplicity and zero vendor lock-in.
+            {t("home.cta_subtitle")}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Link
@@ -425,14 +430,14 @@ export default function HomePage() {
               className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow transition"
             >
               <Terminal className="w-4 h-4 text-indigo-200" />
-              <span>Install sPanel</span>
+              <span>{t("home.btn_install")}</span>
             </Link>
             <Link
               href="/docs/"
               className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 transition"
             >
               <BookOpen className="w-4 h-4 text-slate-500" />
-              <span>Explore Documentation</span>
+              <span>{t("common.read_docs")}</span>
             </Link>
           </div>
         </div>
@@ -440,3 +445,4 @@ export default function HomePage() {
     </div>
   );
 }
+

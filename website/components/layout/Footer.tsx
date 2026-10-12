@@ -1,9 +1,14 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
-import { Layers, BookOpen, Terminal, Shield, GitCommit, FileText } from "lucide-react";
+import { Layers } from "lucide-react";
 import { GithubIcon } from "@/components/icons/GithubIcon";
+import { useLanguage } from "@/context/LanguageContext";
 
 export const Footer: React.FC = () => {
+  const { t } = useLanguage();
+
   return (
     <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 text-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
@@ -22,7 +27,7 @@ export const Footer: React.FC = () => {
               </span>
             </Link>
             <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
-              Lightweight, self-hosted Platform as a Service (PaaS) for deploying and managing applications on your own Linux VPS with Docker-based execution and Go single-binary architecture.
+              {t("footer.tagline")}
             </p>
             <div className="flex items-center gap-3 pt-2 text-slate-400">
               <a
@@ -32,12 +37,12 @@ export const Footer: React.FC = () => {
                 className="hover:text-white transition flex items-center gap-1.5"
               >
                 <GithubIcon className="w-4 h-4" />
-                <span>GitHub Repository</span>
+                <span>{t("footer.repo")}</span>
               </a>
               <span>•</span>
               <span className="font-mono text-[11px] text-emerald-400 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                MIT License
+                {t("footer.mit")}
               </span>
             </div>
           </div>
@@ -45,32 +50,32 @@ export const Footer: React.FC = () => {
           {/* Product Column */}
           <div className="space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
-              Product
+              {t("footer.col_product")}
             </h4>
             <ul className="space-y-2">
               <li>
                 <Link href="/installation/" className="hover:text-white transition">
-                  Installation Guide
+                  {t("footer.install_guide")}
                 </Link>
               </li>
               <li>
                 <Link href="/features/" className="hover:text-white transition">
-                  Features & Status
+                  {t("footer.features")}
                 </Link>
               </li>
               <li>
                 <Link href="/docs/" className="hover:text-white transition">
-                  Documentation
+                  {t("footer.docs")}
                 </Link>
               </li>
               <li>
                 <Link href="/changelog/" className="hover:text-white transition">
-                  Changelog
+                  {t("footer.changelog")}
                 </Link>
               </li>
               <li>
                 <Link href="/roadmap/" className="hover:text-white transition">
-                  Project Roadmap
+                  {t("footer.roadmap")}
                 </Link>
               </li>
             </ul>
@@ -79,32 +84,32 @@ export const Footer: React.FC = () => {
           {/* Documentation Column */}
           <div className="space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
-              User Guides
+              {t("footer.col_guides")}
             </h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/docs/#getting-started" className="hover:text-white transition">
-                  System Requirements
+                <Link href="/installation/#requirements" className="hover:text-white transition">
+                  {t("footer.sys_req")}
                 </Link>
               </li>
               <li>
-                <Link href="/docs/#deployments" className="hover:text-white transition">
-                  GitHub Deployment
+                <Link href="/docs/deployment/" className="hover:text-white transition">
+                  {t("footer.github_deploy")}
                 </Link>
               </li>
               <li>
-                <Link href="/docs/#databases" className="hover:text-white transition">
-                  PostgreSQL & MySQL
+                <Link href="/features/" className="hover:text-white transition">
+                  {t("footer.db_guide")}
                 </Link>
               </li>
               <li>
-                <Link href="/docs/#env-vars" className="hover:text-white transition">
-                  Environment Variables
+                <Link href="/features/" className="hover:text-white transition">
+                  {t("footer.env_vars")}
                 </Link>
               </li>
               <li>
-                <Link href="/docs/#server-ops" className="hover:text-white transition">
-                  Tailscale & SSL Setup
+                <Link href="/features/" className="hover:text-white transition">
+                  {t("footer.tailscale")}
                 </Link>
               </li>
             </ul>
@@ -113,7 +118,7 @@ export const Footer: React.FC = () => {
           {/* Community & Legal Column */}
           <div className="space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
-              Community & Legal
+              {t("footer.col_legal")}
             </h4>
             <ul className="space-y-2">
               <li>
@@ -123,7 +128,7 @@ export const Footer: React.FC = () => {
                   rel="noopener noreferrer"
                   className="hover:text-white transition"
                 >
-                  Contributing
+                  {t("footer.contributing")}
                 </a>
               </li>
               <li>
@@ -133,7 +138,7 @@ export const Footer: React.FC = () => {
                   rel="noopener noreferrer"
                   className="hover:text-white transition"
                 >
-                  Issue Tracker
+                  {t("footer.issues")}
                 </a>
               </li>
               <li>
@@ -143,7 +148,7 @@ export const Footer: React.FC = () => {
                   rel="noopener noreferrer"
                   className="hover:text-white transition"
                 >
-                  Security Disclosure
+                  {t("footer.security")}
                 </a>
               </li>
               <li>
@@ -153,7 +158,7 @@ export const Footer: React.FC = () => {
                   rel="noopener noreferrer"
                   className="hover:text-white transition"
                 >
-                  MIT License
+                  {t("footer.license")}
                 </a>
               </li>
             </ul>
@@ -162,14 +167,14 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[11px]">
-          <p>© 2026 sPanel Contributors. Free and open-source under the MIT License.</p>
+          <p>{t("footer.copyright")}</p>
           <div className="flex items-center gap-4">
             <Link href="/installation/" className="hover:text-slate-300 transition">
-              Install sPanel
+              {t("footer.btn_install")}
             </Link>
             <span>•</span>
             <Link href="/docs/" className="hover:text-slate-300 transition">
-              Docs Portal
+              {t("footer.btn_docs")}
             </Link>
             <span>•</span>
             <a

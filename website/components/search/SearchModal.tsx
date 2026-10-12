@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Search, X, BookOpen, Terminal, Layers, ArrowRight, FileText } from "lucide-react";
 
+import { useLanguage } from "@/context/LanguageContext";
+
 interface SearchResult {
   title: string;
   category: string;
@@ -11,7 +13,7 @@ interface SearchResult {
   summary: string;
 }
 
-const SEARCH_DATABASE: SearchResult[] = [
+const SEARCH_DATABASE_EN: SearchResult[] = [
   {
     title: "Installation Guide",
     category: "Getting Started",
@@ -74,14 +76,80 @@ const SEARCH_DATABASE: SearchResult[] = [
   },
 ];
 
+const SEARCH_DATABASE_ID: SearchResult[] = [
+  {
+    title: "Panduan Instalasi",
+    category: "Memulai",
+    href: "/installation/",
+    summary: "Spesifikasi sistem, instalasi binary mandiri, dan setup systemd service.",
+  },
+  {
+    title: "Spesifikasi Sistem",
+    category: "Memulai",
+    href: "/installation/#requirements",
+    summary: "Ubuntu 22.04 LTS / Debian 12, Docker 20.10+, RAM 2GB, disk 20GB.",
+  },
+  {
+    title: "Integrasi GitHub",
+    category: "Panduan Pengguna",
+    href: "/docs/deployment/",
+    summary: "Hubungkan repositori GitHub, pilih branch, dan atur deploy otomatis.",
+  },
+  {
+    title: "Deteksi Framework",
+    category: "Panduan Pengguna",
+    href: "/docs/deployment/#frameworks",
+    summary: "Deteksi otomatis Nixpacks sandbox untuk Next.js, Node.js, Laravel, Python, Go.",
+  },
+  {
+    title: "Manajemen Database",
+    category: "Panduan Pengguna",
+    href: "/docs/#databases",
+    summary: "Penyediaan PostgreSQL, MySQL, Redis, dan SQLite dengan volume persisten.",
+  },
+  {
+    title: "Variabel Lingkungan",
+    category: "Panduan Pengguna",
+    href: "/docs/#env-vars",
+    summary: "Variabel build-time vs runtime serta enkripsi rahasia AES-256-GCM.",
+  },
+  {
+    title: "Domain & HTTPS",
+    category: "Panduan Pengguna",
+    href: "/docs/#domains",
+    summary: "Domain staging gratis via sslip.io dan sertifikat SSL otomatis Let's Encrypt.",
+  },
+  {
+    title: "Matriks Fitur",
+    category: "Produk",
+    href: "/features/",
+    summary: "Daftar lengkap fitur yang sudah aktif, sebagian aktif, dan dalam rencana.",
+  },
+  {
+    title: "Catatan Rilis",
+    category: "Proyek",
+    href: "/changelog/",
+    summary: "Riwayat rilis dan commit git untuk sPanel v1.1.0.",
+  },
+  {
+    title: "Roadmap Proyek",
+    category: "Proyek",
+    href: "/roadmap/",
+    summary: "Milestone selesai, pekerjaan aktif berjalan, dan rencana kluster multi-VPS.",
+  },
+];
+
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => {
+  const { t, locale } = useLanguage();
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const searchDatabase = locale === "id" ? SEARCH_DATABASE_ID : SEARCH_DATABASE_EN;
 
   useEffect(() => {
     if (isOpen) {
@@ -96,8 +164,6 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault();
         if (isOpen) onClose();
-        else {
-          }
       }
       if (e.key === "Escape" && isOpen) {
         onClose();
@@ -110,13 +176,13 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
   if (!isOpen) return null;
 
   const filtered = query.trim()
-    ? SEARCH_DATABASE.filter(
+    ? searchDatabase.filter(
         (item) =>
           item.title.toLowerCase().includes(query.toLowerCase()) ||
           item.summary.toLowerCase().includes(query.toLowerCase()) ||
           item.category.toLowerCase().includes(query.toLowerCase())
       )
-    : SEARCH_DATABASE.slice(0, 5);
+    : searchDatabase.slice(0, 5);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
@@ -134,7 +200,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search documentation, guides, and features..."
+            placeholder={t("search.placeholder")}
             className="flex-1 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden bg-transparent"
           />
           <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-500 border border-slate-200">
@@ -152,7 +218,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
         <div className="p-2 max-h-80 overflow-y-auto divide-y divide-slate-100">
           {filtered.length === 0 ? (
             <div className="py-8 text-center text-xs text-slate-500">
-              No results found for &quot;{query}&quot;.
+              {t("search.no_results")} &quot;{query}&quot;.
             </div>
           ) : (
             filtered.map((item, idx) => (
@@ -183,7 +249,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
 
         {/* Footer info */}
         <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
-          <span>Search sPanel Documentation Portal</span>
+          <span>{t("search.footer")}</span>
           <span className="font-mono text-[10px]">v1.1.0</span>
         </div>
       </div>
