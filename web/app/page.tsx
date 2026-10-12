@@ -179,7 +179,6 @@ export default function Dashboard() {
     }
   };
 
-  // Rollback Action
   const handleRollback = async (project: Project) => {
     setActiveLogProject(project.name);
     setActiveLogProjectObj(project);
