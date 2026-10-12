@@ -3,7 +3,7 @@
 all: build-local
 
 build-web:
-	cd web && npm run build
+	cd web && pnpm run build
 
 build-local: build-web
 	go build -o spanel ./cmd/server

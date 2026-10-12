@@ -22,6 +22,10 @@ website/node_modules/
 website/.next/
 website/out/
 
+# pnpm
+.pnpm-store/
+pnpm-debug.log*
+
 
 # Environment variables
 .env

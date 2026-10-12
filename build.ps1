@@ -10,7 +10,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 # 1. Build Next.js Dashboard
 Write-Host "`n[1/2] Building Next.js Dashboard (output: export)..." -ForegroundColor Yellow
 Set-Location -Path "./web"
-npm run build
+pnpm run build
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Frontend build failed!" -ForegroundColor Red
     Set-Location -Path ".."
