@@ -24,22 +24,18 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: 'web/pnpm-lock.yaml'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
 
       - name: Build Web Application
+        working-directory: web
         run: |
-          cd web
-          pnpm install --frozen-lockfile
+          pnpm install
           pnpm run build
 
       - name: Compile Linux AMD64 Binary
@@ -50,7 +46,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then
-            VERSION="v1.2.0"
+            VERSION="v1.2.1"
           fi
           go build -ldflags="-s -w -X 'spanel/internal/config.Version=${VERSION}'" -o spanel_linux_amd64 ./cmd/server
 
@@ -62,7 +58,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then
-            VERSION="v1.2.0"
+            VERSION="v1.2.1"
           fi
           go build -ldflags="-s -w -X 'spanel/internal/config.Version=${VERSION}'" -o spanel_linux_arm64 ./cmd/server
 
