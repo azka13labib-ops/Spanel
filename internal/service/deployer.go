@@ -223,11 +223,26 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	EnsureTraefikRunning(ctx, writeLog)
 
 	imageTag := fmt.Sprintf("spanel-%s:%s", project.Name, deployment.ID[:8])
+
+	buildDir := sourceDir
+	if project.BaseDirectory != "" {
+		cleanSub := filepath.Clean(strings.Trim(project.BaseDirectory, "/\\."))
+		if cleanSub != "." && !strings.HasPrefix(cleanSub, "..") {
+			targetDir := filepath.Join(sourceDir, cleanSub)
+			if info, err := os.Stat(targetDir); err == nil && info.IsDir() {
+				buildDir = targetDir
+				writeLog("✓ Using specified Root Directory: ./%s", filepath.ToSlash(cleanSub))
+			} else {
+				writeLog("⚠️ Root Directory ./%s not found, falling back to repository root.", filepath.ToSlash(cleanSub))
+			}
+		}
+	}
+
 	buildOpts := &builder.BuildOptions{
 		DeploymentID: deployment.ID,
 		ProjectID:    project.ID,
 		ProjectName:  project.Name,
-		SourceDir:    sourceDir,
+		SourceDir:    buildDir,
 		ImageTag:     imageTag,
 		EnvVars:      make(map[string]string),
 		LogWriter:    logFile,

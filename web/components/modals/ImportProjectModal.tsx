@@ -63,6 +63,7 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
   const [importConfig, setImportConfig] = useState({
     name: "",
     branch: "main",
+    base_directory: "",
     target_port: 3000,
   });
   const [repoBranches, setRepoBranches] = useState<string[]>([]);
@@ -74,6 +75,7 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
     name: "",
     repo_fullname: "",
     branch: "main",
+    base_directory: "",
     target_port: 3000,
   });
 
@@ -85,6 +87,7 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
     setImportConfig({
       name: repo.name.toLowerCase().replace(/[^a-z0-9-]/g, ""),
       branch: defBranch,
+      base_directory: "",
       target_port: 3000,
     });
 
@@ -132,6 +135,7 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
       name: importConfig.name,
       repo_fullname: selectedRepo.full_name,
       branch: importConfig.branch,
+      base_directory: importConfig.base_directory.trim(),
       target_port: Number(importConfig.target_port),
       healthcheck_path: "/",
     });
@@ -153,12 +157,15 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
 
     setIsDeployingImport(true);
     setImportError("");
-    const res = await createProject(manualProject);
+    const res = await createProject({
+      ...manualProject,
+      base_directory: manualProject.base_directory.trim(),
+    });
     setIsDeployingImport(false);
     if (res.ok && res.data) {
       onProjectCreated(res.data, false);
       onClose();
-      setManualProject({ name: "", repo_fullname: "", branch: "main", target_port: 3000 });
+      setManualProject({ name: "", repo_fullname: "", branch: "main", base_directory: "", target_port: 3000 });
     } else {
       setImportError(res.error || "Failed to create project. Please verify backend connection and repository name.");
     }
@@ -293,6 +300,26 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
                 </div>
               </div>
 
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700">Root Directory</label>
+                  <span className="text-xs text-gray-400">Optional (for monorepo)</span>
+                </div>
+                <div className="relative">
+                  <FolderGit2 className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="e.g. website or apps/web (leave blank for root)"
+                    value={importConfig.base_directory}
+                    onChange={(e) => setImportConfig({ ...importConfig, base_directory: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 rounded-md bg-white border border-gray-300 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-mono text-sm shadow-sm"
+                  />
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Biarkan kosong jika proyek berada di root folder. Jika monorepo, tentukan nama subfoldernya (seperti <span className="font-mono text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded">website</span>).
+                </p>
+              </div>
+
               {importConfig.name && (
                 <div className="p-3.5 rounded-lg bg-gray-50 border border-gray-200 text-xs mt-4">
                   <span className="text-gray-500">Generated Magic Staging Domain:</span>
@@ -393,6 +420,19 @@ export const ImportProjectModal: React.FC<ImportProjectModalProps> = ({
                   value={manualProject.repo_fullname}
                   onChange={(e) => setManualProject({ ...manualProject, repo_fullname: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-700">Root Directory (Monorepo)</label>
+                  <span className="text-[11px] text-gray-400">Optional</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="e.g. website (leave blank for repository root)"
+                  value={manualProject.base_directory}
+                  onChange={(e) => setManualProject({ ...manualProject, base_directory: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-gray-300 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-mono"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">

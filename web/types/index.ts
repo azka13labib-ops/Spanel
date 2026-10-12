@@ -35,6 +35,7 @@ export interface Project {
   name: string;
   repo_fullname: string;
   branch: string;
+  base_directory?: string;
   custom_domain?: string;
   magic_domain?: string;
   target_port: number;

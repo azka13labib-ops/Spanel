@@ -1,4 +1,5 @@
 # Binaries
+*.exe
 spanel
 spanel.exe
 spanel-linux-amd64

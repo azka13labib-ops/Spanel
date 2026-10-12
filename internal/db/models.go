@@ -84,6 +84,7 @@ type Project struct {
 	Name                 string  `gorm:"uniqueIndex;not null" json:"name"`
 	RepoFullName         string  `gorm:"not null" json:"repo_fullname"`
 	Branch               string  `gorm:"default:'main'" json:"branch"`
+	BaseDirectory        string  `gorm:"default:''" json:"base_directory"`
 	CustomDomain         string  `json:"custom_domain"`
 	MagicDomain          string  `json:"magic_domain"`
 	TargetPort           int     `gorm:"default:3000" json:"target_port"`

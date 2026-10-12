@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   HelpCircle,
   Lightbulb,
+  FolderGit2,
 } from "lucide-react";
 import { deleteProject, updateProject, updateProjectDomain, verifyProjectDomain } from "@/lib/api";
 
@@ -35,6 +36,7 @@ export function ProjectSettingsModal({
   onSuccess,
 }: ProjectSettingsModalProps) {
   const [branch, setBranch] = useState("");
+  const [baseDirectory, setBaseDirectory] = useState("");
   const [port, setPort] = useState(3000);
   const [healthcheck, setHealthcheck] = useState("/");
   const [domain, setDomain] = useState("");
@@ -63,6 +65,7 @@ export function ProjectSettingsModal({
     setPrevProject(project);
     if (project) {
       setBranch(project.branch || "main");
+      setBaseDirectory(project.base_directory || "");
       setPort(project.target_port || 3000);
       setHealthcheck(project.healthcheck_path || "/");
       setDomain(project.custom_domain || "");
@@ -115,6 +118,7 @@ export function ProjectSettingsModal({
     setSavedSuccess(false);
     const res = await updateProject(project.id, {
       branch,
+      base_directory: baseDirectory.trim(),
       target_port: port,
       healthcheck_path: healthcheck,
     });
@@ -214,6 +218,26 @@ export function ProjectSettingsModal({
                 />
                 <p className="text-[11px] text-gray-400">
                   Pushes or webhooks on this branch will trigger automated deployments.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-gray-700">Root Directory (Monorepo)</label>
+                  <span className="text-[11px] text-gray-400">Optional</span>
+                </div>
+                <div className="relative">
+                  <FolderGit2 className="h-3.5 w-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={baseDirectory}
+                    onChange={(e) => setBaseDirectory(e.target.value)}
+                    placeholder="e.g. website or apps/web (leave blank for root)"
+                    className="w-full bg-white border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono shadow-2xs"
+                  />
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  Tentukan subfolder aplikasi jika repository Anda merupakan monorepo.
                 </p>
               </div>
             </div>

@@ -19,6 +19,7 @@ type CreateProjectInput struct {
 	Name            string  `json:"name"`
 	RepoFullName    string  `json:"repo_fullname"`
 	Branch          string  `json:"branch"`
+	BaseDirectory   string  `json:"base_directory"`
 	CustomDomain    string  `json:"custom_domain"`
 	TargetPort      int     `json:"target_port"`
 	HealthcheckPath string  `json:"healthcheck_path"`
@@ -98,6 +99,12 @@ func (s *Server) handleCreateProject(c *fiber.Ctx) error {
 		input.AIMode = "supervised"
 	}
 
+	cleanBaseDir := filepath.Clean(strings.Trim(input.BaseDirectory, "/\\."))
+	if cleanBaseDir == "." || strings.HasPrefix(cleanBaseDir, "..") {
+		cleanBaseDir = ""
+	}
+	input.BaseDirectory = filepath.ToSlash(cleanBaseDir)
+
 	// Generate magic domain (e.g., project-name.127.0.0.1.sslip.io)
 	magicDomain := fmt.Sprintf("%s.%s.sslip.io", input.Name, s.cfg.HostIP)
 
@@ -106,6 +113,7 @@ func (s *Server) handleCreateProject(c *fiber.Ctx) error {
 		Name:            input.Name,
 		RepoFullName:    input.RepoFullName,
 		Branch:          input.Branch,
+		BaseDirectory:   input.BaseDirectory,
 		CustomDomain:    input.CustomDomain,
 		MagicDomain:     magicDomain,
 		TargetPort:      input.TargetPort,
@@ -432,6 +440,7 @@ func (s *Server) handleDeleteProject(c *fiber.Ctx) error {
 
 type UpdateProjectInput struct {
 	Branch          string  `json:"branch"`
+	BaseDirectory   *string `json:"base_directory"`
 	CustomDomain    *string `json:"custom_domain"`
 	TargetPort      int     `json:"target_port"`
 	HealthcheckPath string  `json:"healthcheck_path"`
@@ -451,6 +460,13 @@ func (s *Server) handleUpdateProject(c *fiber.Ctx) error {
 
 	if input.Branch != "" {
 		project.Branch = input.Branch
+	}
+	if input.BaseDirectory != nil {
+		cleanBaseDir := filepath.Clean(strings.Trim(*input.BaseDirectory, "/\\."))
+		if cleanBaseDir == "." || strings.HasPrefix(cleanBaseDir, "..") {
+			cleanBaseDir = ""
+		}
+		project.BaseDirectory = filepath.ToSlash(cleanBaseDir)
 	}
 	if input.TargetPort > 0 {
 		project.TargetPort = input.TargetPort

@@ -128,6 +128,7 @@ export async function createProject(payload: {
   name: string;
   repo_fullname: string;
   branch: string;
+  base_directory?: string;
   target_port: number;
   healthcheck_path?: string;
 }): Promise<{ ok: boolean; data?: Project; error?: string }> {
