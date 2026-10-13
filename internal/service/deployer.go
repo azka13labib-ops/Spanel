@@ -124,11 +124,16 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	gitDir := filepath.Join(sourceDir, ".git")
 
 	gitArgs := func(baseArgs ...string) []string {
+		defaultFlags := []string{
+			"-c", "http.connectTimeout=20",
+			"-c", "http.lowSpeedLimit=1000",
+			"-c", "http.lowSpeedTime=30",
+		}
 		if gitToken == "" {
-			return baseArgs
+			return append(defaultFlags, baseArgs...)
 		}
 		authHeader := "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte("x-access-token:"+gitToken))
-		return append([]string{"-c", "credential.helper=", "-c", "http.extraHeader=" + authHeader}, baseArgs...)
+		return append(append(defaultFlags, "-c", "credential.helper=", "-c", "http.extraHeader="+authHeader), baseArgs...)
 	}
 
 	runCmdStreaming := func(cmd *exec.Cmd) error {
@@ -182,7 +187,7 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 
 	var cloneErr error
 	if gitToken != "" {
-		cmd := exec.CommandContext(ctx, "git", gitArgs("clone", "--progress", "--depth", "1", "--branch", project.Branch, repoURL, sourceDir)...)
+		cmd := exec.CommandContext(ctx, "git", gitArgs("clone", "-4", "--progress", "--depth", "1", "--branch", project.Branch, repoURL, sourceDir)...)
 		cloneErr = runCmdStreaming(cmd)
 		if cloneErr != nil {
 			writeLog("Clone with token failed or branch %s not found, checking fallback...", project.Branch)
@@ -191,11 +196,11 @@ func (s *DeployService) HandleDeploy(ctx context.Context, job *db.InternalQueueJ
 	}
 
 	if gitToken == "" || cloneErr != nil {
-		cmd := exec.CommandContext(ctx, "git", "clone", "--progress", "--depth", "1", "--branch", project.Branch, repoURL, sourceDir)
+		cmd := exec.CommandContext(ctx, "git", gitArgs("clone", "-4", "--progress", "--depth", "1", "--branch", project.Branch, repoURL, sourceDir)...)
 		if err := runCmdStreaming(cmd); err != nil {
 			writeLog("Branch %s not found, retrying default branch...", project.Branch)
 			_ = os.RemoveAll(sourceDir)
-			cmdFallback := exec.CommandContext(ctx, "git", "clone", "--progress", "--depth", "1", repoURL, sourceDir)
+			cmdFallback := exec.CommandContext(ctx, "git", gitArgs("clone", "-4", "--progress", "--depth", "1", repoURL, sourceDir)...)
 			if fbErr := runCmdStreaming(cmdFallback); fbErr != nil {
 				writeLog("❌ Git clone failed: %v", fbErr)
 				deployment.Status = "failed"
