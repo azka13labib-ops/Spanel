@@ -50,19 +50,9 @@ export const DocsSidebar: React.FC = () => {
           icon: BookOpen,
         },
         {
-          title: t("docs.sidebar.requirements"),
-          href: "/installation/#requirements",
-          icon: Server,
-        },
-        {
-          title: t("docs.sidebar.installation"),
-          href: "/installation/",
-          icon: Terminal,
-        },
-        {
-          title: t("docs.sidebar.first_setup"),
-          href: "/installation/",
-          icon: CheckCircle2,
+          title: t("docs.sidebar.quickstart"),
+          href: "/docs/deployment/",
+          icon: Rocket,
         },
       ],
     },
@@ -71,27 +61,32 @@ export const DocsSidebar: React.FC = () => {
       items: [
         {
           title: t("docs.sidebar.github"),
-          href: "/docs/deployment/",
+          href: "/docs/deployment/#github",
           icon: Rocket,
         },
         {
           title: t("docs.sidebar.laravel"),
-          href: "/docs/deployment/",
+          href: "/docs/deployment/#laravel",
           icon: Layers,
         },
         {
           title: t("docs.sidebar.nextjs"),
-          href: "/docs/deployment/",
+          href: "/docs/deployment/#nextjs",
           icon: Layers,
         },
         {
+          title: t("docs.sidebar.docker"),
+          href: "/docs/deployment/#docker",
+          icon: Server,
+        },
+        {
           title: t("docs.sidebar.env_vars"),
-          href: "/features/",
+          href: "/docs/deployment/#env",
           icon: KeyRound,
         },
         {
           title: t("docs.sidebar.domains"),
-          href: "/features/",
+          href: "/docs/deployment/#domains",
           icon: Globe,
         },
       ],
@@ -101,28 +96,23 @@ export const DocsSidebar: React.FC = () => {
       items: [
         {
           title: t("docs.sidebar.containers"),
-          href: "/features/",
+          href: "/docs/deployment/#containers",
           icon: Layers,
         },
         {
           title: t("docs.sidebar.databases"),
-          href: "/features/",
+          href: "/docs/deployment/#databases",
           icon: Layers,
         },
         {
           title: t("docs.sidebar.terminal"),
-          href: "/features/",
+          href: "/docs/deployment/#terminal",
           icon: Terminal,
         },
         {
           title: t("docs.sidebar.monitoring"),
-          href: "/features/",
+          href: "/docs/deployment/#monitoring",
           icon: Activity,
-        },
-        {
-          title: t("docs.sidebar.backups"),
-          href: "/roadmap/",
-          icon: Archive,
         },
       ],
     },
@@ -131,13 +121,13 @@ export const DocsSidebar: React.FC = () => {
       items: [
         {
           title: t("docs.sidebar.architecture"),
-          href: "/features/",
+          href: "/docs/#architecture",
           icon: Compass,
         },
         {
-          title: t("docs.sidebar.api_ref"),
-          href: "/features/",
-          icon: FileCode2,
+          title: t("docs.sidebar.systemd"),
+          href: "/docs/#systemd",
+          icon: Server,
         },
         {
           title: t("docs.sidebar.troubleshooting"),
@@ -158,13 +148,14 @@ export const DocsSidebar: React.FC = () => {
   const isItemActive = (href: string) => {
     if (!pathname) return false;
     const cleanCurrent = pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
-    const cleanHref = href.endsWith("/") ? href.slice(0, -1) : href;
+    const baseHref = href.split("#")[0];
+    const cleanHref = baseHref.endsWith("/") ? baseHref.slice(0, -1) : baseHref;
 
     if (cleanHref === "/docs") {
-      return cleanCurrent === "/docs";
+      return cleanCurrent === "/docs" && !href.includes("#");
     }
     if (cleanHref === "/docs/deployment") {
-      return cleanCurrent.startsWith("/docs/deployment");
+      return cleanCurrent === "/docs/deployment" && !href.includes("#");
     }
     return false;
   };

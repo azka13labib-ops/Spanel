@@ -7,11 +7,16 @@ import {
   Database,
   KeyRound,
   Globe,
-  Archive,
   Search,
   HelpCircle,
   Package,
   Rocket,
+  Terminal,
+  Server,
+  Layers,
+  Code2,
+  Cpu,
+  ShieldCheck,
 } from "lucide-react";
 import { GithubIcon } from "@/components/icons/GithubIcon";
 import { SearchModal } from "@/components/search/SearchModal";
@@ -23,21 +28,21 @@ export default function DocsPortalPage() {
 
   const gettingStartedCards = [
     {
-      title: t("docs.card.install.title"),
-      description: t("docs.card.install.desc"),
-      href: "/installation/",
-      icon: Package,
-    },
-    {
-      title: t("docs.card.deploy.title"),
-      description: t("docs.card.deploy.desc"),
+      title: t("docs.card.quickstart.title"),
+      description: t("docs.card.quickstart.desc"),
       href: "/docs/deployment/",
       icon: Rocket,
     },
     {
-      title: t("docs.card.db.title"),
-      description: t("docs.card.db.desc"),
-      href: "/features/",
+      title: t("docs.card.frameworks.title"),
+      description: t("docs.card.frameworks.desc"),
+      href: "/docs/deployment/#frameworks",
+      icon: Package,
+    },
+    {
+      title: t("docs.card.config.title"),
+      description: t("docs.card.config.desc"),
+      href: "/docs/deployment/#env",
       icon: Database,
     },
   ];
@@ -46,26 +51,26 @@ export default function DocsPortalPage() {
     {
       title: t("docs.guide1_title"),
       description: t("docs.guide1_desc"),
-      href: "/docs/deployment/",
+      href: "/docs/deployment/#github",
       icon: Rocket,
     },
     {
       title: t("docs.guide2_title"),
       description: t("docs.guide2_desc"),
-      href: "/features/",
+      href: "/docs/deployment/#env",
       icon: KeyRound,
     },
     {
       title: t("docs.guide3_title"),
       description: t("docs.guide3_desc"),
-      href: "/features/",
+      href: "/docs/deployment/#domains",
       icon: Globe,
     },
     {
       title: t("docs.guide4_title"),
       description: t("docs.guide4_desc"),
-      href: "/roadmap/",
-      icon: Archive,
+      href: "/docs/deployment/#terminal",
+      icon: Terminal,
     },
   ];
 
@@ -178,6 +183,98 @@ export default function DocsPortalPage() {
               </Link>
             );
           })}
+        </div>
+      </div>
+
+      {/* Architecture Overview Section */}
+      <div id="architecture" className="space-y-4 pt-4 scroll-mt-24">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Cpu className="w-5 h-5 text-indigo-600" />
+            <span>{t("docs.sidebar.architecture")}</span>
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            How sPanel orchestrates your infrastructure with single-binary efficiency.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2">
+            <div className="flex items-center gap-2.5 text-xs font-bold text-slate-900">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Go Fiber + SQLite (WAL Mode)</span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Ultra-lightweight control plane consuming ~30MB RAM. Embedded frontend assets mean no host Node.js runtime is required.
+            </p>
+          </div>
+          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2">
+            <div className="flex items-center gap-2.5 text-xs font-bold text-slate-900">
+              <span className="w-2 h-2 rounded-full bg-indigo-500" />
+              <span>Nixpacks Ephemeral Sandbox</span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Builds run in isolated containers. Untrusted repository scripts cannot modify host files or access server tokens.
+            </p>
+          </div>
+          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2">
+            <div className="flex items-center gap-2.5 text-xs font-bold text-slate-900">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              <span>Traefik Reverse Proxy & TLS</span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Auto-discovers containers via Docker labels with zero-downtime routing and automatic Let&apos;s Encrypt certificate issuance.
+            </p>
+          </div>
+          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2">
+            <div className="flex items-center gap-2.5 text-xs font-bold text-slate-900">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span>AES-256-GCM Secret Vault</span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              All environment variables, tokens, and database credentials are encrypted at rest with military-grade AES-256-GCM.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Systemd Service Management Section */}
+      <div id="systemd" className="space-y-4 pt-4 scroll-mt-24">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Server className="w-5 h-5 text-indigo-600" />
+            <span>{t("docs.sidebar.systemd")}</span>
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Configure sPanel as a persistent Linux system service for auto-restart on boot.
+          </p>
+        </div>
+
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 text-slate-100 font-mono text-xs space-y-3 overflow-x-auto shadow-md">
+          <div className="text-slate-400 text-[11px] pb-1 border-b border-slate-800">
+            # /etc/systemd/system/spanel.service
+          </div>
+          <pre className="text-slate-300 leading-relaxed">{`[Unit]
+Description=sPanel Production PaaS Control Plane
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/spanel
+ExecStart=/usr/local/bin/spanel
+Restart=always
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target`}</pre>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-mono">
+          <span>sudo systemctl daemon-reload &amp;&amp; sudo systemctl enable --now spanel</span>
+          <span className="text-[11px] text-emerald-600 font-sans font-semibold">Active &amp; Auto-Restarting</span>
         </div>
       </div>
 
