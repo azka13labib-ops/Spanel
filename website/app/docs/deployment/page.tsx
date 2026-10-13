@@ -153,6 +153,17 @@ export default function DeploymentGuidePage() {
               </p>
             </div>
 
+            {/* Python (FastAPI / Flask / Django) */}
+            <div id="python" className="p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2.5 scroll-mt-24">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900">Python (FastAPI, Flask, Django)</h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200">python / pip / poetry</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Nixpacks mendeteksi <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[11px]">requirements.txt</code> atau <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[11px]">pyproject.toml</code> secara otomatis. Masukkan command start (misal: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[11px]">uvicorn main:app --host 0.0.0.0 --port $PORT</code>) pada environment variable <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[11px]">NIXPACKS_START_CMD</code> jika menggunakan ASGI runner khusus.
+              </p>
+            </div>
+
             {/* Docker */}
             <div id="docker" className="p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2.5 scroll-mt-24">
               <div className="flex items-center justify-between">

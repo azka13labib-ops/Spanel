@@ -30,19 +30,19 @@ export default function DocsPortalPage() {
     {
       title: t("docs.card.quickstart.title"),
       description: t("docs.card.quickstart.desc"),
-      href: "/docs/deployment/",
+      href: "/docs/quickstart/",
       icon: Rocket,
     },
     {
       title: t("docs.card.frameworks.title"),
       description: t("docs.card.frameworks.desc"),
-      href: "/docs/deployment/#frameworks",
+      href: "/docs/deployment/",
       icon: Package,
     },
     {
       title: t("docs.card.config.title"),
       description: t("docs.card.config.desc"),
-      href: "/docs/deployment/#env",
+      href: "/docs/databases/",
       icon: Database,
     },
   ];
@@ -63,13 +63,13 @@ export default function DocsPortalPage() {
     {
       title: t("docs.guide3_title"),
       description: t("docs.guide3_desc"),
-      href: "/docs/deployment/#domains",
+      href: "/docs/domains-ssl/",
       icon: Globe,
     },
     {
       title: t("docs.guide4_title"),
       description: t("docs.guide4_desc"),
-      href: "/docs/deployment/#terminal",
+      href: "/docs/server-management/#terminal",
       icon: Terminal,
     },
   ];
@@ -295,14 +295,12 @@ WantedBy=multi-user.target`}</pre>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <a
-            href="https://github.com/azka13labib-ops/Spanel/issues"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/docs/troubleshooting/"
             className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition shadow-2xs"
           >
             {t("docs.stuck.btn_troubleshoot")}
-          </a>
+          </Link>
           <a
             href="https://github.com/azka13labib-ops/Spanel"
             target="_blank"

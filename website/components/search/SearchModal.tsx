@@ -15,6 +15,12 @@ interface SearchResult {
 
 const SEARCH_DATABASE_EN: SearchResult[] = [
   {
+    title: "Quickstart Guide",
+    category: "Getting Started",
+    href: "/docs/quickstart/",
+    summary: "From clean VPS to live staging domain in 4 straightforward steps.",
+  },
+  {
     title: "Installation Guide",
     category: "Getting Started",
     href: "/installation/",
@@ -27,34 +33,46 @@ const SEARCH_DATABASE_EN: SearchResult[] = [
     summary: "Ubuntu 22.04 LTS / Debian 12, Docker 20.10+, 2GB RAM, 20GB disk.",
   },
   {
-    title: "GitHub Integration",
+    title: "GitHub Integration & Deploy",
     category: "User Guide",
     href: "/docs/deployment/",
-    summary: "Connect GitHub repositories, select branches, and configure auto-deploy.",
+    summary: "Connect GitHub repositories, select branches, and configure auto-deploy on git push.",
   },
   {
-    title: "Framework Detection",
+    title: "Framework Detection (Next.js, Laravel, Python)",
     category: "User Guide",
     href: "/docs/deployment/#frameworks",
-    summary: "Ephemeral Nixpacks auto-detection for Next.js, Node.js, Laravel, Python, Go.",
+    summary: "Ephemeral Nixpacks auto-detection for Next.js, Laravel PHP, Python FastAPI/Django, and Docker.",
   },
   {
-    title: "Database Management",
-    category: "User Guide",
-    href: "/docs/#databases",
-    summary: "Provision PostgreSQL, MySQL, Redis, and SQLite with persistent host volumes.",
+    title: "Managed Databases & Storage",
+    category: "Databases",
+    href: "/docs/databases/",
+    summary: "Provision PostgreSQL 16, MySQL 8, Redis 7 with internal bridge networking and persistent volumes.",
   },
   {
-    title: "Environment Variables",
-    category: "User Guide",
-    href: "/docs/#env-vars",
+    title: "Custom Domains & Automated SSL",
+    category: "Networking & Security",
+    href: "/docs/domains-ssl/",
+    summary: "Traefik Let's Encrypt TLS, Cloudflare Full/Strict setup, and magic sslip.io staging domains.",
+  },
+  {
+    title: "Server Operations & Live Logs",
+    category: "Operations",
+    href: "/docs/server-management/",
+    summary: "Web terminal xterm.js, real-time SSE build logs, container lifecycle, and 1-click rollback.",
+  },
+  {
+    title: "Troubleshooting & Diagnostics",
+    category: "Support",
+    href: "/docs/troubleshooting/",
+    summary: "Fix Git clone timeouts (IPv6), 502 Bad Gateway, Out of Memory (OOM/Swap), and port conflicts.",
+  },
+  {
+    title: "Environment Variables & Secrets",
+    category: "Security",
+    href: "/docs/deployment/#env",
     summary: "Build-time vs runtime variables and AES-256-GCM secret encryption.",
-  },
-  {
-    title: "Domains & HTTPS",
-    category: "User Guide",
-    href: "/docs/#domains",
-    summary: "Magic staging domains with sslip.io and automatic Let's Encrypt SSL.",
   },
   {
     title: "Features Matrix",
@@ -78,6 +96,12 @@ const SEARCH_DATABASE_EN: SearchResult[] = [
 
 const SEARCH_DATABASE_ID: SearchResult[] = [
   {
+    title: "Panduan Cepat (Quickstart)",
+    category: "Memulai",
+    href: "/docs/quickstart/",
+    summary: "Dari VPS kosong hingga aplikasi live dengan domain staging dalam 4 langkah mudah.",
+  },
+  {
     title: "Panduan Instalasi",
     category: "Memulai",
     href: "/installation/",
@@ -90,34 +114,46 @@ const SEARCH_DATABASE_ID: SearchResult[] = [
     summary: "Ubuntu 22.04 LTS / Debian 12, Docker 20.10+, RAM 2GB, disk 20GB.",
   },
   {
-    title: "Integrasi GitHub",
+    title: "Integrasi GitHub & Deploy",
     category: "Panduan Pengguna",
     href: "/docs/deployment/",
-    summary: "Hubungkan repositori GitHub, pilih branch, dan atur deploy otomatis.",
+    summary: "Hubungkan repositori GitHub, pilih branch, dan atur deploy otomatis setiap git push.",
   },
   {
-    title: "Deteksi Framework",
+    title: "Deteksi Framework (Next.js, Laravel, Python)",
     category: "Panduan Pengguna",
     href: "/docs/deployment/#frameworks",
-    summary: "Deteksi otomatis Nixpacks sandbox untuk Next.js, Node.js, Laravel, Python, Go.",
+    summary: "Deteksi otomatis Nixpacks sandbox untuk Next.js, Laravel PHP, Python FastAPI/Django, dan Docker.",
   },
   {
-    title: "Manajemen Database",
-    category: "Panduan Pengguna",
-    href: "/docs/#databases",
-    summary: "Penyediaan PostgreSQL, MySQL, Redis, dan SQLite dengan volume persisten.",
+    title: "Database Terkelola & Penyimpanan",
+    category: "Database",
+    href: "/docs/databases/",
+    summary: "Penyediaan PostgreSQL 16, MySQL 8, Redis 7, jaringan internal bridge, dan volume persisten.",
   },
   {
-    title: "Variabel Lingkungan",
-    category: "Panduan Pengguna",
-    href: "/docs/#env-vars",
+    title: "Domain Kustom & Otomatisasi SSL",
+    category: "Jaringan & Keamanan",
+    href: "/docs/domains-ssl/",
+    summary: "Traefik Let's Encrypt TLS, setup Cloudflare Full/Strict, dan domain staging sslip.io.",
+  },
+  {
+    title: "Operasional Server & Live Log",
+    category: "Operasional",
+    href: "/docs/server-management/",
+    summary: "Terminal web xterm.js, streaming SSE live log, siklus hidup kontainer, dan 1-click rollback.",
+  },
+  {
+    title: "Pemecahan Masalah & Diagnostik VPS",
+    category: "Bantuan & Solusi",
+    href: "/docs/troubleshooting/",
+    summary: "Solusi timeout Git IPv6, 502 Bad Gateway, Out of Memory (OOM & Buat Swap), serta konflik port.",
+  },
+  {
+    title: "Variabel Lingkungan & Rahasia",
+    category: "Keamanan",
+    href: "/docs/deployment/#env",
     summary: "Variabel build-time vs runtime serta enkripsi rahasia AES-256-GCM.",
-  },
-  {
-    title: "Domain & HTTPS",
-    category: "Panduan Pengguna",
-    href: "/docs/#domains",
-    summary: "Domain staging gratis via sslip.io dan sertifikat SSL otomatis Let's Encrypt.",
   },
   {
     title: "Matriks Fitur",

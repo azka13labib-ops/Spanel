@@ -20,6 +20,13 @@ import {
   Rocket,
   CheckCircle2,
   ChevronDown,
+  Database,
+  ShieldCheck,
+  AlertTriangle,
+  RotateCcw,
+  Code2,
+  Network,
+  Cpu,
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -51,14 +58,29 @@ export const DocsSidebar: React.FC = () => {
         },
         {
           title: t("docs.sidebar.quickstart"),
-          href: "/docs/deployment/",
+          href: "/docs/quickstart/",
           icon: Rocket,
+        },
+        {
+          title: t("docs.sidebar.architecture"),
+          href: "/docs/#architecture",
+          icon: Compass,
+        },
+        {
+          title: t("docs.sidebar.systemd"),
+          href: "/docs/#systemd",
+          icon: Server,
         },
       ],
     },
     {
       group: t("docs.sidebar.deploy_apps"),
       items: [
+        {
+          title: t("docs.sidebar.frameworks"),
+          href: "/docs/deployment/",
+          icon: FileCode2,
+        },
         {
           title: t("docs.sidebar.github"),
           href: "/docs/deployment/#github",
@@ -75,6 +97,11 @@ export const DocsSidebar: React.FC = () => {
           icon: Layers,
         },
         {
+          title: t("docs.sidebar.python"),
+          href: "/docs/deployment/#python",
+          icon: Code2,
+        },
+        {
           title: t("docs.sidebar.docker"),
           href: "/docs/deployment/#docker",
           icon: Server,
@@ -84,9 +111,64 @@ export const DocsSidebar: React.FC = () => {
           href: "/docs/deployment/#env",
           icon: KeyRound,
         },
+      ],
+    },
+    {
+      group: t("docs.sidebar.database_storage"),
+      items: [
+        {
+          title: t("docs.sidebar.databases"),
+          href: "/docs/databases/",
+          icon: Database,
+        },
+        {
+          title: t("docs.sidebar.postgres"),
+          href: "/docs/databases/#postgres",
+          icon: Layers,
+        },
+        {
+          title: t("docs.sidebar.mysql"),
+          href: "/docs/databases/#mysql",
+          icon: Layers,
+        },
+        {
+          title: t("docs.sidebar.redis"),
+          href: "/docs/databases/#redis",
+          icon: Layers,
+        },
+        {
+          title: t("docs.sidebar.internal_network"),
+          href: "/docs/databases/#networking",
+          icon: Network,
+        },
+        {
+          title: t("docs.sidebar.volumes"),
+          href: "/docs/databases/#volumes",
+          icon: Archive,
+        },
+      ],
+    },
+    {
+      group: t("docs.sidebar.domains_security"),
+      items: [
         {
           title: t("docs.sidebar.domains"),
-          href: "/docs/deployment/#domains",
+          href: "/docs/domains-ssl/",
+          icon: Globe,
+        },
+        {
+          title: t("docs.sidebar.traefik_ssl"),
+          href: "/docs/domains-ssl/#ssl",
+          icon: ShieldCheck,
+        },
+        {
+          title: t("docs.sidebar.cloudflare"),
+          href: "/docs/domains-ssl/#cloudflare",
+          icon: ShieldCheck,
+        },
+        {
+          title: t("docs.sidebar.staging_domains"),
+          href: "/docs/domains-ssl/#staging",
           icon: Globe,
         },
       ],
@@ -95,24 +177,49 @@ export const DocsSidebar: React.FC = () => {
       group: t("docs.sidebar.manage_server"),
       items: [
         {
-          title: t("docs.sidebar.containers"),
-          href: "/docs/deployment/#containers",
-          icon: Layers,
+          title: t("docs.sidebar.server_mgmt"),
+          href: "/docs/server-management/",
+          icon: Server,
         },
         {
-          title: t("docs.sidebar.databases"),
-          href: "/docs/deployment/#databases",
-          icon: Layers,
+          title: t("docs.sidebar.live_logs"),
+          href: "/docs/server-management/#logs",
+          icon: Activity,
         },
         {
           title: t("docs.sidebar.terminal"),
-          href: "/docs/deployment/#terminal",
+          href: "/docs/server-management/#terminal",
           icon: Terminal,
         },
         {
-          title: t("docs.sidebar.monitoring"),
-          href: "/docs/deployment/#monitoring",
-          icon: Activity,
+          title: t("docs.sidebar.rollback"),
+          href: "/docs/server-management/#rollback",
+          icon: RotateCcw,
+        },
+      ],
+    },
+    {
+      group: t("docs.sidebar.troubleshoot_group"),
+      items: [
+        {
+          title: t("docs.sidebar.troubleshooting"),
+          href: "/docs/troubleshooting/",
+          icon: LifeBuoy,
+        },
+        {
+          title: t("docs.sidebar.git_timeout"),
+          href: "/docs/troubleshooting/#git-timeout",
+          icon: AlertTriangle,
+        },
+        {
+          title: t("docs.sidebar.bad_gateway"),
+          href: "/docs/troubleshooting/#502",
+          icon: AlertTriangle,
+        },
+        {
+          title: t("docs.sidebar.oom_swap"),
+          href: "/docs/troubleshooting/#swap",
+          icon: Cpu,
         },
       ],
     },
@@ -120,25 +227,15 @@ export const DocsSidebar: React.FC = () => {
       group: t("docs.sidebar.reference"),
       items: [
         {
-          title: t("docs.sidebar.architecture"),
-          href: "/docs/#architecture",
-          icon: Compass,
-        },
-        {
-          title: t("docs.sidebar.systemd"),
-          href: "/docs/#systemd",
-          icon: Server,
-        },
-        {
-          title: t("docs.sidebar.troubleshooting"),
-          href: "https://github.com/azka13labib-ops/Spanel/issues",
-          icon: LifeBuoy,
-          external: true,
-        },
-        {
           title: t("docs.sidebar.contributing"),
           href: "https://github.com/azka13labib-ops/Spanel/blob/main/CONTRIBUTING.md",
           icon: GitPullRequest,
+          external: true,
+        },
+        {
+          title: "GitHub Repository",
+          href: "https://github.com/azka13labib-ops/Spanel",
+          icon: ExternalLink,
           external: true,
         },
       ],
@@ -151,13 +248,10 @@ export const DocsSidebar: React.FC = () => {
     const baseHref = href.split("#")[0];
     const cleanHref = baseHref.endsWith("/") ? baseHref.slice(0, -1) : baseHref;
 
-    if (cleanHref === "/docs") {
-      return cleanCurrent === "/docs" && !href.includes("#");
+    if (href.includes("#")) {
+      return false;
     }
-    if (cleanHref === "/docs/deployment") {
-      return cleanCurrent === "/docs/deployment" && !href.includes("#");
-    }
-    return false;
+    return cleanCurrent === cleanHref;
   };
 
   const renderNavList = () => (
@@ -233,8 +327,8 @@ export const DocsSidebar: React.FC = () => {
 
       {/* Desktop Persistent Left Sidebar */}
       <aside className="hidden lg:block w-64 shrink-0">
-        <div className="sticky top-24 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-6">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-100 text-xs font-bold text-slate-900 uppercase tracking-wider">
+        <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-6">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-100 text-xs font-bold text-slate-900 uppercase tracking-wider sticky top-0 bg-white z-10">
             <BookOpen className="w-4 h-4 text-indigo-600" />
             <span>{t("docs.breadcrumb_root")}</span>
           </div>
