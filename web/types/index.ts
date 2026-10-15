@@ -44,6 +44,9 @@ export interface Project {
   created_at: string;
   deployments?: DeploymentItem[];
   env_vars?: EnvVarItem[];
+  is_external?: boolean;
+  image?: string;
+  ports?: string;
 }
 
 export interface SystemMetrics {

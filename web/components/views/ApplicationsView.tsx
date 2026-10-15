@@ -14,6 +14,7 @@ import {
   ExternalLink,
   MoreVertical,
   Square,
+  Box,
 } from "lucide-react";
 import { Project } from "@/types";
 import { formatTimeAgo } from "@/lib/utils";
@@ -221,6 +222,10 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
               <tbody className="divide-y divide-gray-100 text-gray-800">
                 {filteredProjects.map((project) => {
                   const activeDomain = project.custom_domain || project.magic_domain;
+                  const isRunning = project.status === "running";
+                  const hostName = typeof window !== "undefined" ? window.location.hostname : "localhost";
+                  const directPortUrl = project.target_port > 0 ? `http://${hostName}:${project.target_port}` : null;
+
                   return (
                     <tr key={project.id} className="hover:bg-gray-50/70 transition">
                       {/* Application Info */}
@@ -230,15 +235,35 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                           onClick={() => handleOpenOverview(project)}
                           title="View application details"
                         >
-                          <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 transition ${
+                            project.is_external
+                              ? "bg-amber-50 border border-amber-200 text-amber-700 group-hover:bg-amber-600 group-hover:text-white"
+                              : "bg-indigo-50 border border-indigo-100 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white"
+                          }`}>
                             {project.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <span className="font-semibold text-gray-900 group-hover:text-indigo-600 block truncate transition">
-                              {project.name}
-                            </span>
-                            <span className="text-[10px] text-gray-500 font-mono block truncate">
-                              {project.repo_fullname}
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-gray-900 group-hover:text-indigo-600 block truncate transition">
+                                {project.name}
+                              </span>
+                              {project.is_external && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                  External
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-gray-500 font-mono truncate flex items-center gap-1 mt-0.5">
+                              {project.is_external ? (
+                                <>
+                                  <Box className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                                  <span className="truncate" title={project.image || project.repo_fullname}>
+                                    {project.image || project.repo_fullname}
+                                  </span>
+                                </>
+                              ) : (
+                                project.repo_fullname
+                              )}
                             </span>
                           </div>
                         </div>
@@ -246,7 +271,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
 
                       {/* Status */}
                       <td className="px-4 py-4">
-                        {project.status === "running" ? (
+                        {isRunning ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             <span>Running</span>
@@ -266,7 +291,22 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
 
                       {/* Domain / Routing */}
                       <td className="px-4 py-4 text-gray-600">
-                        {activeDomain ? (
+                        {project.is_external ? (
+                          directPortUrl ? (
+                            <a
+                              href={directPortUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-800 font-mono text-[11px] hover:underline"
+                            >
+                              <Globe className="w-3 h-3 text-emerald-500" />
+                              <span className="truncate max-w-40">:{project.target_port} (Direct)</span>
+                              <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 text-[11px] font-mono">Internal Network</span>
+                          )
+                        ) : activeDomain ? (
                           <a
                             href={`http://${activeDomain}`}
                             target="_blank"
@@ -284,17 +324,23 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
 
                       {/* Port */}
                       <td className="px-4 py-4 font-mono text-gray-700 text-[11px]">
-                        :{project.target_port || 3000}
+                        {project.target_port > 0 ? `:${project.target_port}` : "-"}
                       </td>
 
                       {/* Branch */}
                       <td className="px-4 py-4 font-mono text-gray-600 text-[11px]">
-                        {project.branch || "main"}
+                        {project.is_external ? (
+                          <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[10px]">
+                            container
+                          </span>
+                        ) : (
+                          project.branch || "main"
+                        )}
                       </td>
 
                       {/* Uptime - truthful calculation */}
                       <td className="px-4 py-4 text-gray-600 text-[11px]">
-                        {project.status === "running"
+                        {isRunning
                           ? project.created_at
                             ? formatTimeAgo(project.created_at)
                             : "Active"
@@ -303,44 +349,92 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
 
                       {/* Actions */}
                       <td className="px-5 py-4 text-right relative">
-                        <div className="inline-flex items-center gap-1">
-                          <button
-                            onClick={() => onDeploy(project)}
-                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
-                            title="Deploy"
-                            aria-label={`Deploy ${project.name}`}
-                          >
-                            <Play className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => onViewLogs(project)}
-                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
-                            title="Logs"
-                            aria-label={`View logs for ${project.name}`}
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleOpenConsole(project)}
-                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
-                            title="Console Terminal"
-                            aria-label={`Open console terminal for ${project.name}`}
-                          >
-                            <Terminal className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              setActiveMenuProject(activeMenuProject === project.id ? null : project.id)
-                            }
-                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
-                            aria-label={`More options for ${project.name}`}
-                          >
-                            <MoreVertical className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        {project.is_external ? (
+                          <div className="inline-flex items-center gap-1">
+                            {isRunning ? (
+                              <button
+                                onClick={() => setConfirmTarget({ project, action: "stop" })}
+                                className="p-1.5 rounded-lg hover:bg-rose-50 text-amber-700 hover:text-rose-700 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none"
+                                title="Stop Container"
+                                aria-label={`Stop ${project.name}`}
+                              >
+                                <Square className="w-3.5 h-3.5" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => onContainerAction(project, "start")}
+                                className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none"
+                                title="Start Container"
+                                aria-label={`Start ${project.name}`}
+                              >
+                                <Play className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setConfirmTarget({ project, action: "restart" })}
+                              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                              title="Restart Container"
+                              aria-label={`Restart ${project.name}`}
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => onViewLogs(project)}
+                              className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                              title="Logs"
+                              aria-label={`View logs for ${project.name}`}
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleOpenConsole(project)}
+                              className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                              title="Console Terminal"
+                              aria-label={`Open console terminal for ${project.name}`}
+                            >
+                              <Terminal className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              onClick={() => onDeploy(project)}
+                              className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                              title="Deploy"
+                              aria-label={`Deploy ${project.name}`}
+                            >
+                              <Play className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => onViewLogs(project)}
+                              className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                              title="Logs"
+                              aria-label={`View logs for ${project.name}`}
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleOpenConsole(project)}
+                              className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                              title="Console Terminal"
+                              aria-label={`Open console terminal for ${project.name}`}
+                            >
+                              <Terminal className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                setActiveMenuProject(activeMenuProject === project.id ? null : project.id)
+                              }
+                              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-900 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                              aria-label={`More options for ${project.name}`}
+                            >
+                              <MoreVertical className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
 
-                        {/* Dropdown Menu */}
-                        {activeMenuProject === project.id && (
+                        {/* Dropdown Menu (for sPanel projects) */}
+                        {!project.is_external && activeMenuProject === project.id && (
                           <div className="absolute right-5 top-12 w-48 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 z-20 text-left text-xs animate-in fade-in">
                             <button
                               onClick={() => {
@@ -375,7 +469,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
 
                             <div className="my-1 border-t border-gray-100" />
 
-                            {project.status === "running" ? (
+                            {isRunning ? (
                               <button
                                 onClick={() => {
                                   setActiveMenuProject(null);
@@ -424,6 +518,10 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredProjects.map((project) => {
             const activeDomain = project.custom_domain || project.magic_domain;
+            const isRunning = project.status === "running";
+            const hostName = typeof window !== "undefined" ? window.location.hostname : "localhost";
+            const directPortUrl = project.target_port > 0 ? `http://${hostName}:${project.target_port}` : null;
+
             return (
               <div
                 key={project.id}
@@ -436,20 +534,40 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                       onClick={() => handleOpenOverview(project)}
                       title="View application details"
                     >
-                      <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm group-hover:bg-indigo-600 group-hover:text-white transition">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm transition ${
+                        project.is_external
+                          ? "bg-amber-50 border border-amber-200 text-amber-700 group-hover:bg-amber-600 group-hover:text-white"
+                          : "bg-indigo-50 border border-indigo-100 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white"
+                      }`}>
                         {project.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h3 className="font-bold text-sm text-gray-900 group-hover:text-indigo-600 transition leading-tight">
-                          {project.name}
-                        </h3>
-                        <p className="text-[11px] text-gray-500 font-mono truncate max-w-45">
-                          {project.repo_fullname}
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-bold text-sm text-gray-900 group-hover:text-indigo-600 transition leading-tight">
+                            {project.name}
+                          </h3>
+                          {project.is_external && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                              External
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-500 font-mono truncate max-w-45 flex items-center gap-1 mt-0.5">
+                          {project.is_external ? (
+                            <>
+                              <Box className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                              <span className="truncate" title={project.image || project.repo_fullname}>
+                                {project.image || project.repo_fullname}
+                              </span>
+                            </>
+                          ) : (
+                            project.repo_fullname
+                          )}
                         </p>
                       </div>
                     </div>
 
-                    {project.status === "running" ? (
+                    {isRunning ? (
                       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         <span>Running</span>
@@ -462,7 +580,22 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                     )}
                   </div>
 
-                  {activeDomain && (
+                  {project.is_external ? (
+                    directPortUrl ? (
+                      <a
+                        href={directPortUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-800 text-xs font-mono hover:underline"
+                      >
+                        <Globe className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="truncate">:{project.target_port} (Direct Link)</span>
+                        <ExternalLink className="w-3 h-3 opacity-60" />
+                      </a>
+                    ) : (
+                      <span className="text-gray-400 text-xs font-mono">Internal Network</span>
+                    )
+                  ) : activeDomain && (
                     <a
                       href={`http://${activeDomain}`}
                       target="_blank"
@@ -478,43 +611,91 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
 
                 <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
                   <span className="text-gray-500 font-mono text-[11px]">
-                    :{project.target_port || 3000} ({project.branch || "main"})
+                    {project.target_port > 0 ? `:${project.target_port}` : "-"} ({project.is_external ? "container" : (project.branch || "main")})
                   </span>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => onDeploy(project)}
-                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
-                      title="Redeploy"
-                      aria-label={`Redeploy ${project.name}`}
-                    >
-                      <Play className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onViewLogs(project)}
-                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
-                      title="Logs"
-                      aria-label={`View logs for ${project.name}`}
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleOpenConsole(project)}
-                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
-                      title="Terminal Console"
-                      aria-label={`Open terminal for ${project.name}`}
-                    >
-                      <Terminal className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onOpenSettings(project)}
-                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
-                      title="Settings"
-                      aria-label={`Settings for ${project.name}`}
-                    >
-                      <Settings className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  {project.is_external ? (
+                    <div className="flex items-center gap-1">
+                      {isRunning ? (
+                        <button
+                          onClick={() => setConfirmTarget({ project, action: "stop" })}
+                          className="p-1.5 rounded-lg hover:bg-rose-50 text-amber-700 hover:text-rose-700 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none"
+                          title="Stop Container"
+                          aria-label={`Stop ${project.name}`}
+                        >
+                          <Square className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => onContainerAction(project, "start")}
+                          className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none"
+                          title="Start Container"
+                          aria-label={`Start ${project.name}`}
+                        >
+                          <Play className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setConfirmTarget({ project, action: "restart" })}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                        title="Restart Container"
+                        aria-label={`Restart ${project.name}`}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onViewLogs(project)}
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                        title="Logs"
+                        aria-label={`View logs for ${project.name}`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleOpenConsole(project)}
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                        title="Terminal Console"
+                        aria-label={`Open terminal for ${project.name}`}
+                      >
+                        <Terminal className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => onDeploy(project)}
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                        title="Redeploy"
+                        aria-label={`Redeploy ${project.name}`}
+                      >
+                        <Play className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onViewLogs(project)}
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                        title="Logs"
+                        aria-label={`View logs for ${project.name}`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleOpenConsole(project)}
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                        title="Terminal Console"
+                        aria-label={`Open terminal for ${project.name}`}
+                      >
+                        <Terminal className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onOpenSettings(project)}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-indigo-600 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                        title="Settings"
+                        aria-label={`Settings for ${project.name}`}
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );

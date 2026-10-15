@@ -47,8 +47,9 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
   onOpenTerminal,
   defaultTab = "console",
 }) => {
+  const initialTab = project.is_external && (defaultTab === "deployments" || defaultTab === "environment") ? "console" : defaultTab;
   const [activeTab, setActiveTab] = useState<"overview" | "deployments" | "logs" | "console" | "environment">(
-    defaultTab
+    initialTab
   );
   const [isTerminalExpanded, setIsTerminalExpanded] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<{
@@ -56,7 +57,10 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
   } | null>(null);
 
   const isRunning = project.status === "running";
-  const activeDomain = project.custom_domain || project.magic_domain;
+  const hostName = typeof window !== "undefined" ? window.location.hostname : "localhost";
+  const activeDomain = project.is_external
+    ? (project.target_port > 0 ? `${hostName}:${project.target_port}` : null)
+    : (project.custom_domain || project.magic_domain);
 
   const handleExecuteConfirm = () => {
     if (!confirmTarget) return;
@@ -86,6 +90,11 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
               <span className="text-xs text-gray-500 font-medium">Applications</span>
               <span className="text-xs text-gray-300">/</span>
               <h1 className="text-lg font-bold text-gray-900 tracking-tight">{project.name}</h1>
+              {project.is_external && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                  External Container
+                </span>
+              )}
               {isRunning ? (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -98,7 +107,9 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-500 font-mono mt-0.5">{project.repo_fullname}</p>
+            <p className="text-xs text-gray-500 font-mono mt-0.5">
+              {project.is_external ? `Image: ${project.image || project.repo_fullname}` : project.repo_fullname}
+            </p>
           </div>
         </div>
 
@@ -150,26 +161,30 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
             </button>
           )}
 
-          <button
-            onClick={() => onDeploy(project)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
-          >
-            <Play className="w-3.5 h-3.5" />
-            <span>Deploy</span>
-          </button>
+          {!project.is_external && (
+            <>
+              <button
+                onClick={() => onDeploy(project)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+              >
+                <Play className="w-3.5 h-3.5" />
+                <span>Deploy</span>
+              </button>
 
-          <button
-            onClick={() => onOpenSettings(project)}
-            className="p-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
-            title="Project Settings"
-            aria-label="Project Settings"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+              <button
+                onClick={() => onOpenSettings(project)}
+                className="p-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                title="Project Settings"
+                aria-label="Project Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* 5 Tab Navigation: Overview, Deployments, Logs, Console, Environment */}
+      {/* Tab Navigation */}
       <div className="flex items-center gap-1 border-b border-gray-200 text-xs font-semibold">
         <button
           onClick={() => setActiveTab("overview")}
@@ -183,17 +198,19 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
           <span>Overview</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab("deployments")}
-          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
-            activeTab === "deployments"
-              ? "border-indigo-600 text-indigo-600"
-              : "border-transparent text-gray-500 hover:text-gray-900"
-          }`}
-        >
-          <GitCommit className="w-4 h-4" />
-          <span>Deployments</span>
-        </button>
+        {!project.is_external && (
+          <button
+            onClick={() => setActiveTab("deployments")}
+            className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
+              activeTab === "deployments"
+                ? "border-indigo-600 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            <GitCommit className="w-4 h-4" />
+            <span>Deployments</span>
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab("logs")}
@@ -220,17 +237,19 @@ export const ApplicationDetailView: React.FC<ApplicationDetailViewProps> = ({
           {isRunning && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
         </button>
 
-        <button
-          onClick={() => setActiveTab("environment")}
-          className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
-            activeTab === "environment"
-              ? "border-indigo-600 text-indigo-600"
-              : "border-transparent text-gray-500 hover:text-gray-900"
-          }`}
-        >
-          <Key className="w-4 h-4" />
-          <span>Environment</span>
-        </button>
+        {!project.is_external && (
+          <button
+            onClick={() => setActiveTab("environment")}
+            className={`px-4 py-2.5 border-b-2 transition flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
+              activeTab === "environment"
+                ? "border-indigo-600 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            <Key className="w-4 h-4" />
+            <span>Environment</span>
+          </button>
+        )}
       </div>
 
       {/* Tab Panels */}

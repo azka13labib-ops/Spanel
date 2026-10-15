@@ -32,11 +32,97 @@ type AttachDBInput struct {
 	MarketplaceServiceID string `json:"marketplace_service_id"`
 }
 
+func parseDockerTime(s string) time.Time {
+	if s == "" {
+		return time.Now()
+	}
+	formats := []string{
+		"2006-01-02 15:04:05 -0700 MST",
+		"2006-01-02 15:04:05 +0700 WIB",
+		"2006-01-02 15:04:05 -0700 -0700",
+		time.RFC3339Nano,
+		time.RFC3339,
+	}
+	for _, f := range formats {
+		if t, err := time.Parse(f, s); err == nil {
+			return t
+		}
+	}
+	return time.Now()
+}
+
+func parseContainerPort(portsStr string) int {
+	if portsStr == "" {
+		return 0
+	}
+	// Look for host mapped port first: e.g. ":8081->"
+	reHost := regexp.MustCompile(`:(\d+)->`)
+	if match := reHost.FindStringSubmatch(portsStr); len(match) > 1 {
+		if p, err := strconv.Atoi(match[1]); err == nil {
+			return p
+		}
+	}
+	// Fallback to standalone port: e.g. "3000/tcp" or "80/tcp"
+	reStandalone := regexp.MustCompile(`(\d+)/(tcp|udp)`)
+	if match := reStandalone.FindStringSubmatch(portsStr); len(match) > 1 {
+		if p, err := strconv.Atoi(match[1]); err == nil {
+			return p
+		}
+	}
+	return 0
+}
+
 func (s *Server) handleListProjects(c *fiber.Ctx) error {
 	var projects []db.Project
 	if err := s.db.Preload("Deployments").Preload("EnvVars").Find(&projects).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
+
+	// Also discover external docker containers (active & inactive)
+	containers := s.getRawDockerContainers()
+	existingNames := make(map[string]bool)
+	for _, p := range projects {
+		existingNames[p.Name] = true
+		existingNames["spanel-app-"+p.Name] = true
+	}
+
+	for _, ct := range containers {
+		// Hide core spanel internal reverse proxy / routing infrastructure
+		if ct.Name == "spanel-traefik" || strings.HasPrefix(ct.Name, "spanel-traefik") {
+			continue
+		}
+		// If it's an existing sPanel project, skip to avoid duplicates
+		if ct.IsSpanelManaged && ct.ProjectName != "" && existingNames[ct.ProjectName] {
+			continue
+		}
+		if existingNames[ct.Name] {
+			continue
+		}
+
+		targetPort := parseContainerPort(ct.Ports)
+		status := "stopped"
+		if ct.State == "running" {
+			status = "running"
+		}
+
+		extProj := db.Project{
+			BaseModel: db.BaseModel{
+				ID:        "ext-" + ct.ID,
+				CreatedAt: parseDockerTime(ct.CreatedAt),
+			},
+			Name:            ct.Name,
+			RepoFullName:    ct.Image,
+			Branch:          "docker",
+			TargetPort:      targetPort,
+			HealthcheckPath: "/",
+			Status:          status,
+			IsExternal:      true,
+			Image:           ct.Image,
+			Ports:           ct.Ports,
+		}
+		projects = append(projects, extProj)
+	}
+
 	return c.JSON(projects)
 }
 
@@ -142,6 +228,32 @@ func (s *Server) handleGetProject(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var project db.Project
 	if err := s.db.Preload("Deployments").Preload("EnvVars").Preload("Volumes").First(&project, "id = ?", id).Error; err != nil {
+		if strings.HasPrefix(id, "ext-") {
+			target := strings.TrimPrefix(id, "ext-")
+			for _, ct := range s.getRawDockerContainers() {
+				if ct.ID == target || ct.Name == target {
+					status := "stopped"
+					if ct.State == "running" {
+						status = "running"
+					}
+					return c.JSON(db.Project{
+						BaseModel: db.BaseModel{
+							ID:        "ext-" + ct.ID,
+							CreatedAt: parseDockerTime(ct.CreatedAt),
+						},
+						Name:            ct.Name,
+						RepoFullName:    ct.Image,
+						Branch:          "docker",
+						TargetPort:      parseContainerPort(ct.Ports),
+						HealthcheckPath: "/",
+						Status:          status,
+						IsExternal:      true,
+						Image:           ct.Image,
+						Ports:           ct.Ports,
+					})
+				}
+			}
+		}
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "project not found"})
 	}
 	return c.JSON(project)
@@ -409,6 +521,15 @@ func (s *Server) handleVerifyProjectDomain(c *fiber.Ctx) error {
 
 func (s *Server) handleDeleteProject(c *fiber.Ctx) error {
 	id := c.Params("id")
+	if strings.HasPrefix(id, "ext-") {
+		target := strings.TrimPrefix(id, "ext-")
+		out, err := exec.Command("docker", "rm", "-f", target).CombinedOutput()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to remove container: " + strings.TrimSpace(string(out))})
+		}
+		return c.JSON(fiber.Map{"message": "Container deleted successfully"})
+	}
+
 	var project db.Project
 	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
@@ -511,7 +632,15 @@ func (s *Server) handleStartProject(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var project db.Project
 	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
+		target := strings.TrimPrefix(id, "ext-")
+		out, err := exec.Command("docker", "start", target).CombinedOutput()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to start container: " + strings.TrimSpace(string(out))})
+		}
+		return c.JSON(fiber.Map{
+			"message": "Started successfully",
+			"status":  "running",
+		})
 	}
 	containerName := "spanel-app-" + project.Name
 	if err := exec.Command("docker", "start", containerName).Run(); err != nil {
@@ -537,7 +666,15 @@ func (s *Server) handleStopProject(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var project db.Project
 	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
+		target := strings.TrimPrefix(id, "ext-")
+		out, err := exec.Command("docker", "stop", target).CombinedOutput()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to stop container: " + strings.TrimSpace(string(out))})
+		}
+		return c.JSON(fiber.Map{
+			"message": "Stopped successfully",
+			"status":  "stopped",
+		})
 	}
 	containerName := "spanel-app-" + project.Name
 	if err := exec.Command("docker", "stop", containerName).Run(); err != nil {
@@ -557,7 +694,15 @@ func (s *Server) handleRestartProject(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var project db.Project
 	if err := s.db.First(&project, "id = ?", id).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
+		target := strings.TrimPrefix(id, "ext-")
+		out, err := exec.Command("docker", "restart", target).CombinedOutput()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to restart container: " + strings.TrimSpace(string(out))})
+		}
+		return c.JSON(fiber.Map{
+			"message": "Restarted successfully",
+			"status":  "running",
+		})
 	}
 	containerName := "spanel-app-" + project.Name
 	if err := exec.Command("docker", "restart", containerName).Run(); err != nil {

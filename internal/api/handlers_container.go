@@ -35,7 +35,7 @@ type dockerPSItem struct {
 	CreatedAt string `json:"CreatedAt"`
 }
 
-func (s *Server) handleListContainers(c *fiber.Ctx) error {
+func (s *Server) getRawDockerContainers() []ContainerInfo {
 	cmd := exec.Command("docker", "ps", "-a", "--format", "{{json .}}")
 	out, err := cmd.Output()
 	if err != nil {
@@ -44,7 +44,7 @@ func (s *Server) handleListContainers(c *fiber.Ctx) error {
 		if fallbackOut, fallbackErr := cmdRunning.Output(); fallbackErr == nil {
 			out = fallbackOut
 		} else {
-			return c.JSON([]ContainerInfo{})
+			return []ContainerInfo{}
 		}
 	}
 
@@ -104,6 +104,39 @@ func (s *Server) handleListContainers(c *fiber.Ctx) error {
 	if containers == nil {
 		containers = []ContainerInfo{}
 	}
+	return containers
+}
 
+func (s *Server) handleListContainers(c *fiber.Ctx) error {
+	containers := s.getRawDockerContainers()
 	return c.JSON(containers)
 }
+
+func (s *Server) handleContainerAction(c *fiber.Ctx) error {
+	id := strings.TrimSpace(c.Params("id"))
+	action := strings.ToLower(strings.TrimSpace(c.Params("action")))
+
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Container ID is required"})
+	}
+
+	target := strings.TrimPrefix(id, "ext-")
+	if action != "start" && action != "stop" && action != "restart" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid action. Supported: start, stop, restart"})
+	}
+
+	cmd := exec.Command("docker", action, target)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":  "Docker action failed: " + strings.TrimSpace(string(out)),
+			"detail": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"ok":      true,
+		"message": "Container " + target + " " + action + "ed successfully",
+	})
+}
+

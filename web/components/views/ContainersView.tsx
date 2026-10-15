@@ -29,6 +29,7 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
   const [search, setSearch] = useState("");
   const [containers, setContainers] = useState<ContainerItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<"all" | "running" | "stopped">("all");
   const [confirmTarget, setConfirmTarget] = useState<{
     project: Project;
     action: "stop" | "restart";
@@ -69,12 +70,17 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
         is_spanel_managed: true,
       }));
 
-  const filtered = displayContainers.filter(
-    (c) =>
+  const filtered = displayContainers.filter((c) => {
+    const matchesSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.image.toLowerCase().includes(search.toLowerCase()) ||
-      (c.project_name && c.project_name.toLowerCase().includes(search.toLowerCase()))
-  );
+      (c.project_name && c.project_name.toLowerCase().includes(search.toLowerCase()));
+    if (!matchesSearch) return false;
+    const isRunning = c.state === "running";
+    if (statusFilter === "running") return isRunning;
+    if (statusFilter === "stopped") return !isRunning;
+    return true;
+  });
 
   const handleExecuteAction = async () => {
     if (confirmTarget) {
@@ -102,6 +108,9 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
     return undefined;
   };
 
+  const runningCount = displayContainers.filter((c) => c.state === "running").length;
+  const stoppedCount = displayContainers.filter((c) => c.state !== "running").length;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* Header */}
@@ -125,16 +134,38 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
         </button>
       </div>
 
-      {/* Search Input */}
-      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs max-w-md">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      {/* Control Bar: Filter Pills & Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-2xs">
+        {/* Status Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+          {[
+            { id: "all", label: `All (${displayContainers.length})` },
+            { id: "running", label: `Running (${runningCount})` },
+            { id: "stopped", label: `Stopped (${stoppedCount})` },
+          ].map((filter) => (
+            <button
+              key={filter.id}
+              onClick={() => setStatusFilter(filter.id as "all" | "running" | "stopped")}
+              className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none ${
+                statusFilter === filter.id
+                  ? "bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search Input */}
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search container by name, image, or app..."
-            aria-label="Search container by name, image, or app"
+            placeholder="Search container..."
+            aria-label="Search container"
             className="w-full pl-9 pr-3 py-1.5 bg-gray-50/80 focus:bg-white border border-gray-200 rounded-lg text-xs text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-sans"
           />
         </div>
@@ -238,61 +269,75 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
 
                       {/* Actions */}
                       <td className="px-5 py-4 text-right">
-                        {linkedProject ? (
-                          <div className="inline-flex items-center gap-1">
-                            {isRunning ? (
+                        {(() => {
+                          const targetProject: Project = linkedProject || {
+                            id: `ext-${container.id}`,
+                            name: container.name,
+                            repo_fullname: container.image,
+                            branch: "container",
+                            target_port: 0,
+                            healthcheck_path: "/",
+                            status: isRunning ? "running" : "stopped",
+                            created_at: container.created_at || new Date().toISOString(),
+                            is_external: true,
+                            image: container.image,
+                            ports: container.ports,
+                          };
+
+                          return (
+                            <div className="inline-flex items-center gap-1">
+                              {isRunning ? (
+                                <button
+                                  onClick={() => setConfirmTarget({ project: targetProject, action: "stop" })}
+                                  className="p-1.5 rounded-lg hover:bg-rose-50 text-amber-700 hover:text-rose-700 transition focus-visible:ring-2 focus-visible:ring-rose-500 outline-none cursor-pointer"
+                                  title="Stop container"
+                                  aria-label={`Stop container for ${targetProject.name}`}
+                                >
+                                  <Square className="w-3.5 h-3.5" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    onContainerAction(targetProject, "start");
+                                    setTimeout(loadContainers, 1000);
+                                  }}
+                                  className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none cursor-pointer"
+                                  title="Start container"
+                                  aria-label={`Start container for ${targetProject.name}`}
+                                >
+                                  <Play className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
                               <button
-                                onClick={() => setConfirmTarget({ project: linkedProject, action: "stop" })}
-                                className="p-1.5 rounded-lg hover:bg-rose-50 text-amber-700 hover:text-rose-700 transition focus-visible:ring-2 focus-visible:ring-rose-500 outline-none cursor-pointer"
-                                title="Stop container"
-                                aria-label={`Stop container for ${linkedProject.name}`}
+                                onClick={() => setConfirmTarget({ project: targetProject, action: "restart" })}
+                                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
+                                title="Restart container"
+                                aria-label={`Restart container for ${targetProject.name}`}
                               >
-                                <Square className="w-3.5 h-3.5" />
+                                <RotateCcw className="w-3.5 h-3.5" />
                               </button>
-                            ) : (
+
                               <button
-                                onClick={() => {
-                                  onContainerAction(linkedProject, "start");
-                                  setTimeout(loadContainers, 1000);
-                                }}
-                                className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 transition focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none cursor-pointer"
-                                title="Start container"
-                                aria-label={`Start container for ${linkedProject.name}`}
+                                onClick={() => onOpenTerminal(targetProject)}
+                                className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
+                                title="Open shell terminal"
+                                aria-label={`Open terminal for ${targetProject.name}`}
                               >
-                                <Play className="w-3.5 h-3.5" />
+                                <Terminal className="w-3.5 h-3.5" />
                               </button>
-                            )}
 
-                            <button
-                              onClick={() => setConfirmTarget({ project: linkedProject, action: "restart" })}
-                              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
-                              title="Restart container"
-                              aria-label={`Restart container for ${linkedProject.name}`}
-                            >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                            </button>
-
-                            <button
-                              onClick={() => onOpenTerminal(linkedProject)}
-                              className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
-                              title="Open shell terminal"
-                              aria-label={`Open terminal for ${linkedProject.name}`}
-                            >
-                              <Terminal className="w-3.5 h-3.5" />
-                            </button>
-
-                            <button
-                              onClick={() => onViewLogs(linkedProject)}
-                              className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
-                              title="View container logs"
-                              aria-label={`View logs for ${linkedProject.name}`}
-                            >
-                              <FileText className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] text-gray-400 font-mono">External</span>
-                        )}
+                              <button
+                                onClick={() => onViewLogs(targetProject)}
+                                className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 transition focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none cursor-pointer"
+                                title="View container logs"
+                                aria-label={`View logs for ${targetProject.name}`}
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );
@@ -310,12 +355,12 @@ export const ContainersView: React.FC<ContainersViewProps> = ({
           variant={confirmTarget.action === "stop" ? "danger" : "warning"}
           title={
             confirmTarget.action === "stop"
-              ? `Stop container spanel-app-${confirmTarget.project.name}?`
-              : `Restart container spanel-app-${confirmTarget.project.name}?`
+              ? `Stop container ${confirmTarget.project.name}?`
+              : `Restart container ${confirmTarget.project.name}?`
           }
           description={
             confirmTarget.action === "stop"
-              ? `Stopping this container will make the application "${confirmTarget.project.name}" immediately unavailable to incoming HTTP requests until manually restarted.`
+              ? `Stopping will shut down container "${confirmTarget.project.name}". Any services running inside will stop responding.`
               : `Restarting will cycle the container processes. In-flight requests may temporarily drop during the restart transition.`
           }
           confirmLabel={confirmTarget.action === "stop" ? "Stop Container" : "Restart Container"}

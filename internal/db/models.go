@@ -99,6 +99,11 @@ type Project struct {
 	EnvVars     []EnvironmentVariable `gorm:"foreignKey:ProjectID" json:"env_vars,omitempty"`
 	Volumes     []Volume              `gorm:"foreignKey:ProjectID" json:"volumes,omitempty"`
 	Deployments []Deployment          `gorm:"foreignKey:ProjectID" json:"deployments,omitempty"`
+
+	// Non-persistent fields for external docker containers
+	IsExternal bool   `gorm:"-" json:"is_external"`
+	Image      string `gorm:"-" json:"image,omitempty"`
+	Ports      string `gorm:"-" json:"ports,omitempty"`
 }
 
 const (

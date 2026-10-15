@@ -84,6 +84,7 @@ func (s *Server) setupRoutes() {
 	apiGroup.Post("/auth/password", s.handleRotatePassword)
 	apiGroup.Get("/auth/me", s.handleGetMe)
 	apiGroup.Get("/containers", s.handleListContainers)
+	apiGroup.Post("/containers/:id/:action", s.handleContainerAction)
 
 	apiGroup.Get("/system/metrics", s.handleSystemMetrics)
 	apiGroup.Get("/system/version", s.handleGetVersion)

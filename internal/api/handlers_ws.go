@@ -90,13 +90,29 @@ func (s *Server) handleRuntimeLogStreamWebSocket(c *websocket.Conn) {
 	projectID := c.Params("projectId")
 	defer c.Close()
 
+	containerID := ""
+	cleanID := strings.TrimPrefix(strings.TrimPrefix(projectID, "ext-"), "spanel-app-")
 	var project db.Project
-	if err := s.db.First(&project, "id = ?", projectID).Error; err != nil {
-		_ = c.WriteMessage(websocket.TextMessage, []byte("Project not found\r\n"))
+	if err := s.db.First(&project, "id = ? OR name = ?", cleanID, cleanID).Error; err == nil {
+		containerID = "spanel-app-" + project.Name
+	} else {
+		// Check if it's a direct or external docker container
+		inspectCmd := exec.Command("docker", "inspect", "--format", "{{.Name}}", cleanID)
+		if out, err := inspectCmd.Output(); err == nil {
+			containerID = strings.TrimPrefix(strings.TrimSpace(string(out)), "/")
+		} else {
+			inspectCmd2 := exec.Command("docker", "inspect", "--format", "{{.Name}}", projectID)
+			if out2, err2 := inspectCmd2.Output(); err2 == nil {
+				containerID = strings.TrimPrefix(strings.TrimSpace(string(out2)), "/")
+			}
+		}
+	}
+
+	if containerID == "" {
+		_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Container or project '%s' not found\r\n", projectID)))
 		return
 	}
 
-	containerID := "spanel-app-" + project.Name
 	_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Attaching to %s logs...\r\n", containerID)))
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -161,20 +177,34 @@ func (s *Server) handleTerminalWebSocket(c *websocket.Conn) {
 	projectID := c.Params("projectId")
 	defer c.Close()
 
-	cleanID := strings.TrimPrefix(projectID, "spanel-app-")
+	containerID := ""
+	cleanID := strings.TrimPrefix(strings.TrimPrefix(projectID, "ext-"), "spanel-app-")
 	var project db.Project
-	if err := s.db.First(&project, "id = ? OR name = ?", cleanID, cleanID).Error; err != nil {
+	if err := s.db.First(&project, "id = ? OR name = ?", cleanID, cleanID).Error; err == nil {
+		containerID = "spanel-app-" + project.Name
+	} else {
+		// Check if it's a direct or external docker container
+		inspectCmd := exec.Command("docker", "inspect", "--format", "{{.Name}}", cleanID)
+		if out, err := inspectCmd.Output(); err == nil {
+			containerID = strings.TrimPrefix(strings.TrimSpace(string(out)), "/")
+		} else {
+			inspectCmd2 := exec.Command("docker", "inspect", "--format", "{{.Name}}", projectID)
+			if out2, err2 := inspectCmd2.Output(); err2 == nil {
+				containerID = strings.TrimPrefix(strings.TrimSpace(string(out2)), "/")
+			}
+		}
+	}
+
+	if containerID == "" {
 		_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("\r\n\x1b[31m[ERROR]\x1b[0m Application or Container '%s' not found.\r\n", projectID)))
 		return
 	}
-
-	containerID := "spanel-app-" + project.Name
 
 	// Validate container is actively running
 	inspectCmd := exec.Command("docker", "inspect", "--format", "{{.State.Running}}", containerID)
 	out, err := inspectCmd.Output()
 	if err != nil || strings.TrimSpace(string(out)) != "true" {
-		_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("\r\n\x1b[33m[NOTICE]\x1b[0m Container '%s' is stopped. Start the application to access the console.\r\n", containerID)))
+		_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("\r\n\x1b[33m[NOTICE]\x1b[0m Container '%s' is stopped. Start the application or container to access the console.\r\n", containerID)))
 		return
 	}
 

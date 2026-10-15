@@ -46,7 +46,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then
-            VERSION="v1.2.1"
+            VERSION="v1.2.2"
           fi
           go build -ldflags="-s -w -X 'spanel/internal/config.Version=${VERSION}'" -o spanel_linux_amd64 ./cmd/server
 
@@ -58,7 +58,7 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then
-            VERSION="v1.2.1"
+            VERSION="v1.2.2"
           fi
           go build -ldflags="-s -w -X 'spanel/internal/config.Version=${VERSION}'" -o spanel_linux_arm64 ./cmd/server
 
