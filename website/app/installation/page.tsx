@@ -461,17 +461,17 @@ echo 'YourSecurePassword123' | /home/ubuntu/spanel/spanel reset-password`;
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full sm:w-auto">
             <Link
               href="/docs/deployment/"
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className="min-h-11 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
               <span>{t("install.cta.deploy_btn")}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/docs/"
-              className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className="min-h-11 flex items-center justify-center px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition shadow-2xs cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
               {t("install.cta.docs_btn")}
             </Link>

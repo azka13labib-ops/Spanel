@@ -130,14 +130,14 @@ export default function HomePage() {
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
               <Link
                 href="/installation/"
-                className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow transition active:scale-95"
+                className="min-h-11 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow transition active:scale-95"
               >
                 <span>{t("home.btn_install")}</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 href="/docs/"
-                className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 transition"
+                className="min-h-11 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 transition"
               >
                 <BookOpen className="w-4 h-4 text-slate-500" />
                 <span>{t("home.btn_docs")}</span>
@@ -175,16 +175,16 @@ export default function HomePage() {
             <div className="rounded-2xl p-2 sm:p-3 bg-slate-900/5 ring-1 ring-slate-900/10 shadow-2xl backdrop-blur-xs">
               <div className="rounded-xl overflow-hidden border border-slate-200 bg-white">
                 {/* Browser bar */}
-                <div className="px-4 py-3 bg-slate-100/90 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-rose-400" />
-                    <span className="w-3 h-3 rounded-full bg-amber-400" />
-                    <span className="w-3 h-3 rounded-full bg-emerald-400" />
-                    <span className="ml-2 font-mono text-[11px] text-slate-400">
+                <div className="px-4 py-3 bg-slate-100/90 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-3 h-3 rounded-full bg-rose-400 shrink-0" />
+                    <span className="w-3 h-3 rounded-full bg-amber-400 shrink-0" />
+                    <span className="w-3 h-3 rounded-full bg-emerald-400 shrink-0" />
+                    <span className="ml-2 font-mono text-[11px] text-slate-400 truncate hidden xs:inline">
                       https://spanel.your-vps.internal:8090
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold shrink-0">
                     {t("home.preview_badge")}
                   </span>
                 </div>
@@ -249,7 +249,7 @@ export default function HomePage() {
       </section>
 
       {/* Dark Contrast Section ("Built for developers, by developers.") */}
-      <section className="py-16 md:py-24 bg-slate-950 text-white border-b border-slate-800">
+      <section className="py-16 md:py-24 bg-slate-950 text-white border-b border-slate-800 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             {/* Left Column: Visual Mockup / Screen Overlays */}

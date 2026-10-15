@@ -33,6 +33,15 @@ export const metadata: Metadata = {
     title: "sPanel: Smart PaaS Panel",
     description: "Self-hosted PaaS for deploying applications on your own Linux VPS.",
   },
+  icons: {
+    icon: [
+      { url: "/logo/01_monogram_sp_large.png", sizes: "32x32", type: "image/png" },
+      { url: "/logo/01_monogram_sp_large.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [
+      { url: "/logo/01_monogram_sp_large.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 export default function RootLayout({

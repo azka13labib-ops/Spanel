@@ -18,6 +18,7 @@ import {
 import { GithubIcon } from "@/components/icons/GithubIcon";
 import { SearchModal } from "@/components/search/SearchModal";
 import { useLanguage } from "@/context/LanguageContext";
+import { Logo } from "@/components/brand/Logo";
 
 interface NavbarProps {
   activePath?: string;
@@ -107,9 +108,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePath, onOpenSearch }) => {
         {/* Brand Logo & Wordmark */}
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs group-hover:bg-indigo-700 transition">
-              <Layers className="h-5 w-5" />
-            </div>
+            <Logo className="h-9 w-9 rounded-xl" size={36} priority />
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-base tracking-tight text-slate-900">
@@ -156,8 +155,17 @@ export const Navbar: React.FC<NavbarProps> = ({ activePath, onOpenSearch }) => {
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          {/* Quick Search Trigger */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Mobile Search Icon Trigger (min-h-11 touch target) */}
+          <button
+            onClick={handleOpenSearch}
+            className="sm:hidden min-h-11 min-w-11 flex items-center justify-center rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+            aria-label="Search documentation"
+          >
+            <Search className="w-4.5 h-4.5 text-slate-500" />
+          </button>
+
+          {/* Desktop Quick Search Trigger */}
           <button
             onClick={handleOpenSearch}
             className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50/80 text-xs text-slate-400 hover:text-slate-600 hover:bg-white hover:border-slate-300 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500"
@@ -174,7 +182,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePath, onOpenSearch }) => {
           <div className="relative" ref={langMenuRef}>
             <button
               onClick={() => setLangMenuOpen(!langMenuOpen)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className="min-h-11 sm:min-h-0 flex items-center gap-1.5 px-2.5 py-2 sm:py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500"
               aria-label="Select language"
               aria-expanded={langMenuOpen}
             >
@@ -192,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePath, onOpenSearch }) => {
                     setLocale("en");
                     setLangMenuOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                  className={`w-full min-h-10 flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
                     locale === "en"
                       ? "bg-indigo-50 text-indigo-700 font-semibold"
                       : "text-slate-700 hover:bg-slate-50"
@@ -206,7 +214,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePath, onOpenSearch }) => {
                     setLocale("id");
                     setLangMenuOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                  className={`w-full min-h-10 flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
                     locale === "id"
                       ? "bg-indigo-50 text-indigo-700 font-semibold"
                       : "text-slate-700 hover:bg-slate-50"
@@ -222,17 +230,19 @@ export const Navbar: React.FC<NavbarProps> = ({ activePath, onOpenSearch }) => {
           {/* Primary CTA: Install sPanel */}
           <Link
             href="/installation/"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs hover:shadow transition active:scale-95 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="min-h-10 sm:min-h-0 flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs hover:shadow transition active:scale-95 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             <Terminal className="w-3.5 h-3.5 text-indigo-200" />
-            <span>{t("nav.install_btn")}</span>
+            <span className="hidden xs:inline">{t("nav.install_btn")}</span>
+            <span className="xs:hidden">Install</span>
           </Link>
 
-          {/* Mobile Menu Toggle */}
+          {/* Mobile Menu Toggle (44x44px touch target) */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 md:hidden cursor-pointer"
+            className="min-h-11 min-w-11 flex items-center justify-center p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 md:hidden cursor-pointer transition"
             aria-label="Toggle navigation menu"
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -263,16 +273,14 @@ export const Navbar: React.FC<NavbarProps> = ({ activePath, onOpenSearch }) => {
               aria-modal="true"
               aria-label="Mobile Navigation Menu"
             >
-              {/* Drawer Header */}
+              {/* Drawer Header with Official Logo */}
               <div className="h-16 px-5 border-b border-slate-100 flex items-center justify-between bg-white/50 shrink-0">
                 <Link
                   href="/"
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2.5"
                 >
-                  <div className="h-8 w-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs">
-                    <Layers className="h-4 w-4" />
-                  </div>
+                  <Logo className="h-8 w-8 rounded-xl" size={32} />
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold text-base tracking-tight text-slate-900">
                       sPanel
@@ -284,7 +292,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activePath, onOpenSearch }) => {
                 </Link>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  className="min-h-11 min-w-11 flex items-center justify-center p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
                   aria-label="Close menu"
                 >
                   <X className="w-5 h-5" />

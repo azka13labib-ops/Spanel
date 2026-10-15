@@ -128,15 +128,15 @@ export default function QuickstartDocPage() {
               <span className="text-[11px] font-mono text-slate-400">Step {idx + 1} of 4</span>
             </div>
 
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pl-11">
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed sm:pl-11">
               {st.desc}
             </p>
 
-            <div className="ml-11 p-3.5 rounded-xl bg-slate-900 text-slate-100 font-mono text-xs flex items-center justify-between gap-3 overflow-x-auto shadow-inner">
-              <span className="text-emerald-400">$ {st.cmd}</span>
+            <div className="sm:ml-11 p-3.5 rounded-xl bg-slate-900 text-slate-100 font-mono text-xs flex items-center justify-between gap-3 overflow-x-auto shadow-inner">
+              <span className="text-emerald-400 whitespace-nowrap">$ {st.cmd}</span>
             </div>
 
-            <div className="ml-11 flex items-start gap-2 text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <div className="sm:ml-11 flex items-start gap-2 text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
               <span>{st.tip}</span>
             </div>
@@ -153,7 +153,7 @@ export default function QuickstartDocPage() {
         <p className="leading-relaxed text-indigo-800">
           Begitu deployment sukses, sPanel langsung menyediakan domain staging otomatis berformat:
         </p>
-        <div className="p-3 bg-white rounded-xl border border-indigo-200/80 font-mono text-indigo-700 font-bold">
+        <div className="p-3 bg-white rounded-xl border border-indigo-200/80 font-mono text-indigo-700 font-bold overflow-x-auto">
           https://&lt;nama-aplikasi&gt;.&lt;ip-vps&gt;.sslip.io
         </div>
         <p className="text-[11px] text-indigo-600">
@@ -162,17 +162,17 @@ export default function QuickstartDocPage() {
       </div>
 
       {/* Navigation Buttons */}
-      <div className="pt-6 border-t border-slate-200 flex items-center justify-between">
+      <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/docs/"
-          className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
+          className="min-h-11 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>{t("docs.breadcrumb_overview")}</span>
         </Link>
         <Link
           href="/docs/deployment/"
-          className="flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition"
+          className="min-h-11 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition"
         >
           <span>{t("quickstart.next_btn")}</span>
           <ArrowRight className="w-4 h-4" />

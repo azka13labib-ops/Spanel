@@ -175,7 +175,7 @@ export default function ChangelogPage() {
             href="https://github.com/azka13labib-ops/Spanel/releases"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition shadow-2xs"
+            className="min-h-11 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition shadow-2xs w-full sm:w-auto flex items-center justify-center gap-1.5"
           >
             <span>{isId ? "Rilis GitHub" : "GitHub Releases"}</span>
             <ArrowRight className="w-3.5 h-3.5" />

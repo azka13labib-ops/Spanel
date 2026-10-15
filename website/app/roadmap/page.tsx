@@ -206,7 +206,7 @@ export default function RoadmapPage() {
             href="https://github.com/azka13labib-ops/Spanel/discussions"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition shrink-0 shadow-xs"
+            className="min-h-11 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition w-full sm:w-auto flex items-center justify-center gap-1.5 shrink-0 shadow-xs"
           >
             <span>{t("roadmap.cta_btn")}</span>
             <ArrowRight className="w-4 h-4" />

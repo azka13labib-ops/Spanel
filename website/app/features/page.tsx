@@ -361,7 +361,7 @@ export default function FeaturesPage() {
                   <button
                     key={opt.value}
                     onClick={() => setSelectedStatus(opt.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:outline-none ${
+                    className={`min-h-10 px-3.5 py-2 sm:min-h-0 sm:py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:outline-none ${
                       isSelected
                         ? "bg-indigo-600 text-white font-semibold shadow-xs"
                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -524,16 +524,16 @@ export default function FeaturesPage() {
               {t("features.cta_subtitle")}
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-3 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 shrink-0 w-full sm:w-auto">
             <Link
               href="/installation/"
-              className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-indigo-950 bg-white hover:bg-indigo-50 transition shadow-xs focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+              className="min-h-11 flex items-center justify-center px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-indigo-950 bg-white hover:bg-indigo-50 transition shadow-xs focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none cursor-pointer"
             >
               {t("common.install_btn")}
             </Link>
             <Link
               href="/docs/"
-              className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-white border border-indigo-700/80 hover:bg-indigo-900/60 transition focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none"
+              className="min-h-11 flex items-center justify-center px-5 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-white border border-indigo-700/80 hover:bg-indigo-900/60 transition focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none cursor-pointer"
             >
               {t("common.read_docs")}
             </Link>

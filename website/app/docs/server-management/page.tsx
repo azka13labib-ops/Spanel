@@ -125,7 +125,7 @@ export default function ServerManagementDocPage() {
           </p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-slate-900 text-slate-200 font-mono text-xs space-y-3">
+        <div className="p-5 rounded-2xl bg-slate-900 text-slate-200 font-mono text-xs space-y-3 overflow-x-auto">
           <div className="text-slate-400 text-[11px] pb-1 border-b border-slate-800">
             # Jalankan migrasi database di Laravel
           </div>
@@ -167,17 +167,17 @@ export default function ServerManagementDocPage() {
       </div>
 
       {/* Navigation Buttons */}
-      <div className="pt-6 border-t border-slate-200 flex items-center justify-between">
+      <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/docs/domains-ssl/"
-          className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
+          className="min-h-11 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Domain &amp; SSL</span>
         </Link>
         <Link
           href="/docs/troubleshooting/"
-          className="flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition"
+          className="min-h-11 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition"
         >
           <span>Pemecahan Masalah (FAQ)</span>
           <ArrowRight className="w-4 h-4" />

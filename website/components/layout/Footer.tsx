@@ -2,9 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
-import { Layers } from "lucide-react";
 import { GithubIcon } from "@/components/icons/GithubIcon";
 import { useLanguage } from "@/context/LanguageContext";
+import { Logo } from "@/components/brand/Logo";
 
 export const Footer: React.FC = () => {
   const { t } = useLanguage();
@@ -15,10 +15,8 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
           {/* Brand Column */}
           <div className="col-span-2 space-y-4 pr-4">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-xs">
-                <Layers className="h-4.5 w-4.5" />
-              </div>
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <Logo className="h-8 w-8 rounded-lg" size={32} />
               <span className="font-bold text-base text-white tracking-tight">
                 sPanel
               </span>

@@ -162,30 +162,30 @@ export default function DatabasesDocPage() {
         </div>
 
         <div className="space-y-3">
-          <div className="p-4 rounded-xl bg-slate-900 text-slate-200 font-mono text-xs space-y-2">
+          <div className="p-4 rounded-xl bg-slate-900 text-slate-200 font-mono text-xs space-y-2 overflow-x-auto">
             <div className="text-slate-400 text-[11px]"># 1. Backup PostgreSQL ke file SQL terkompresi</div>
-            <div className="text-emerald-400">docker exec -t spanel-db-postgres pg_dump -U dbuser dbname | gzip &gt; backup_$(date +%F).sql.gz</div>
+            <div className="text-emerald-400 whitespace-nowrap">docker exec -t spanel-db-postgres pg_dump -U dbuser dbname | gzip &gt; backup_$(date +%F).sql.gz</div>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-900 text-slate-200 font-mono text-xs space-y-2">
+          <div className="p-4 rounded-xl bg-slate-900 text-slate-200 font-mono text-xs space-y-2 overflow-x-auto">
             <div className="text-slate-400 text-[11px]"># 2. Restore file backup ke database PostgreSQL</div>
-            <div className="text-emerald-400">gunzip &lt; backup_2026-10-13.sql.gz | docker exec -i spanel-db-postgres psql -U dbuser -d dbname</div>
+            <div className="text-emerald-400 whitespace-nowrap">gunzip &lt; backup_2026-10-13.sql.gz | docker exec -i spanel-db-postgres psql -U dbuser -d dbname</div>
           </div>
         </div>
       </div>
 
       {/* Navigation Buttons */}
-      <div className="pt-6 border-t border-slate-200 flex items-center justify-between">
+      <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/docs/deployment/"
-          className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
+          className="min-h-11 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Panduan Deployment</span>
         </Link>
         <Link
           href="/docs/domains-ssl/"
-          className="flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition"
+          className="min-h-11 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition"
         >
           <span>Domain &amp; SSL Let&apos;s Encrypt</span>
           <ArrowRight className="w-4 h-4" />

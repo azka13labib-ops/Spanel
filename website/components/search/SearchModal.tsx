@@ -244,7 +244,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
           </kbd>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-slate-400 hover:text-slate-700 transition"
+            className="min-h-10 min-w-10 sm:min-h-0 sm:min-w-0 flex items-center justify-center p-1 rounded-md text-slate-400 hover:text-slate-700 transition cursor-pointer"
+            aria-label="Close search"
           >
             <X className="w-4 h-4" />
           </button>
@@ -262,7 +263,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
                 key={idx}
                 href={item.href}
                 onClick={onClose}
-                className="flex items-start justify-between p-3 rounded-xl hover:bg-slate-50 transition group cursor-pointer"
+                className="flex items-start justify-between p-3.5 sm:p-3 rounded-xl hover:bg-slate-50 transition group cursor-pointer"
               >
                 <div className="space-y-0.5 pr-2">
                   <div className="flex items-center gap-2">

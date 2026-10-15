@@ -159,7 +159,7 @@ export default function DomainsDocPage() {
           <p>
             sPanel secara otomatis menetapkan domain wildcard berbasis IP VPS Anda menggunakan layanan DNS publik <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[11px]">sslip.io</code>:
           </p>
-          <div className="p-3 bg-slate-900 text-emerald-400 rounded-xl font-mono text-xs">
+          <div className="p-3 bg-slate-900 text-emerald-400 rounded-xl font-mono text-xs overflow-x-auto">
             https://&lt;app&gt;.&lt;ip&gt;.sslip.io
           </div>
           <p>
@@ -169,17 +169,17 @@ export default function DomainsDocPage() {
       </div>
 
       {/* Navigation Buttons */}
-      <div className="pt-6 border-t border-slate-200 flex items-center justify-between">
+      <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/docs/databases/"
-          className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
+          className="min-h-11 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Panduan Database</span>
         </Link>
         <Link
           href="/docs/server-management/"
-          className="flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition"
+          className="min-h-11 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition"
         >
           <span>Operasional &amp; Manajemen Server</span>
           <ArrowRight className="w-4 h-4" />
